@@ -1105,10 +1105,10 @@ def procura_projeto(nome):
     
 
 
-projetos = ["332BEV"]
+projetos = ["312MCA"]
 dominios = ["Climate", "Comfort Climate"]
 use_cases = ["Defroster"]
-VFs = ["VF126"]
+VFs = ["VF123"]
 doors = "LATAM"
 # Inicializar planilha de rastreamento
 df_vfs, nome_arquivo_vfs = criar_planilha_vfs(projetos)
@@ -1133,7 +1133,7 @@ for projeto in projetos:
     
     # Mapeia as subpastas do projeto
     if esperarPor("pasta.png"):
-        pos_x, pos_y = encontrar_posicao_xy("tipo_menu.png", iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+        pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
         # Usa valores padrão se não encontrou a imagem
         if pos_x is None:
             pos_x, pos_y = 0.3, 0.1  # Valores padrão
@@ -1158,7 +1158,7 @@ for projeto in projetos:
     # Procura e clica em Functional Requirements
     if esperarPor("pasta_amarela.png", timeout= 30):
 
-        pos_x, pos_y = encontrar_posicao_xy("tipo_menu.png", iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+        pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
         # Usa valores padrão se não encontrou a imagem
         if pos_x is None:
             pos_x, pos_y = 0.3, 0.1  # Valores padrão
@@ -1184,7 +1184,7 @@ for projeto in projetos:
         exit()
 
     if esperarPor("pasta_amarela.png"):
-        pos_x, pos_y = encontrar_posicao_xy("tipo_menu.png", iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+        pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
         # Usa valores padrão se não encontrou a imagem
         if pos_x is None:
             pos_x, pos_y = 0.3, 0.1  # Valores padrão
@@ -1209,7 +1209,7 @@ for projeto in projetos:
             clicar_pasta(dominio_encontrado, pastas_dominios)
             time.sleep(1)
             if esperarPor("pasta_amarela.png"):
-                pos_x, pos_y = encontrar_posicao_xy("tipo_menu.png", iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+                pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
                 # Usa valores padrão se não encontrou a imagem
                 if pos_x is None:
                     pos_x, pos_y = 0.3, 0.1  # Valores padrão
@@ -1244,7 +1244,7 @@ for projeto in projetos:
                     clicar_pasta(use_case, pastas_use_cases)
                     time.sleep(1)
 
-                    pos_x, pos_y = encontrar_posicao_xy("tipo_menu.png", iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+                    pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
                     # Usa valores padrão se não encontrou a imagem
                     if pos_x is None:
                         pos_x, pos_y = 0.3, 0.1  # Valores padrão
@@ -1312,7 +1312,7 @@ for projeto in projetos:
                     if sub_pastas != {}:
                         for sub_pasta in sub_pastas:
                             clicar_pasta(sub_pasta, sub_pastas)
-                            pos_x, pos_y = encontrar_posicao_xy("tipo_menu.png", iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+                            pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
                             # Usa valores padrão se não encontrou a imagem
                             if pos_x is None:
                                 pos_x, pos_y = 0.3, 0.1  # Valores padrão
