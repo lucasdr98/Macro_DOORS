@@ -219,17 +219,24 @@ def adicionar_vf_planilha(df, nome_arquivo, folder, vf_info, projeto):
 def moveAndClick(image, clickType, offset_x=0, offset_y=0, iniX=0, iniY=0, fimX=1, fimY=1):
     """
     Move o mouse para uma imagem na tela e clica nela, com opção de offset e região de busca.
+    Aceita uma única imagem ou uma lista de imagens para buscar.
     
     Args:
-        image: Nome do arquivo de imagem a procurar
+        image: Nome do arquivo de imagem a procurar ou lista de nomes de imagens
         clickType: Tipo de clique ('left', 'right', ou 'double')
         offset_x: Deslocamento em pixels no eixo X (positivo = direita, negativo = esquerda)
         offset_y: Deslocamento em pixels no eixo Y (positivo = baixo, negativo = cima)
         iniX, iniY, fimX, fimY: Coordenadas relativas da região de busca (0 a 1)
     
     Returns:
-        bool: True se a imagem foi encontrada e clicada, False caso contrário
+        bool: True se alguma imagem foi encontrada e clicada, False caso contrário
     """
+    # Converte uma imagem única em uma lista para processamento uniforme
+    if isinstance(image, str):
+        images = [image]
+    else:
+        images = image
+        
     # Captura uma captura de tela
     screenshot = pyautogui.screenshot()
     screenshot = np.array(screenshot)
@@ -244,25 +251,44 @@ def moveAndClick(image, clickType, offset_x=0, offset_y=0, iniX=0, iniY=0, fimX=
     
     # Recorta a região de busca
     regiao_busca = screenshot[inicio_y:fim_y, inicio_x:fim_x]
-
-    # Carrega a imagem de referência e a converte para escala de cinza
-    template = cv2.imread(r"images/"+image, cv2.IMREAD_GRAYSCALE)
-    if template is None:
-        print(f"❌ Imagem '{image}' não encontrada!")
-        return False
-
-    # Usa correspondência de modelo para encontrar a posição
-    result = cv2.matchTemplate(regiao_busca, template, cv2.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-
+    
     # Define um limite de similaridade
     threshold = 0.7
-    if max_val >= threshold:
+    
+    # Armazena o melhor resultado entre todas as imagens
+    best_match = None
+    best_score = 0
+    best_image = None
+    best_template = None
+    
+    # Tenta encontrar cada imagem na região
+    for img in images:
+        # Carrega a imagem de referência e a converte para escala de cinza
+        template = cv2.imread(r"images/"+img, cv2.IMREAD_GRAYSCALE)
+        if template is None:
+            print(f"❌ Imagem '{img}' não encontrada!")
+            continue
+
+        # Usa correspondência de modelo para encontrar a posição
+        result = cv2.matchTemplate(regiao_busca, template, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        
+        # Se esta imagem tem uma correspondência melhor que as anteriores
+        if max_val >= threshold and max_val > best_score:
+            best_score = max_val
+            best_match = max_loc
+            best_image = img
+            best_template = template
+
+    # Se encontrou alguma correspondência boa
+    if best_match is not None:
         # Converte as coordenadas relativas à região para coordenadas absolutas da tela
-        x, y = max_loc
-        w, h = template.shape[::-1]
+        x, y = best_match
+        w, h = best_template.shape[::-1]
         center_x = inicio_x + x + w // 2 + offset_x
         center_y = inicio_y + y + h // 2 + offset_y
+        
+        print(f"✅ Imagem '{best_image}' encontrada com confiança: {best_score:.2f}")
         
         if clickType == "left":
             pyautogui.leftClick(center_x, center_y, duration=0.5)
@@ -272,7 +298,8 @@ def moveAndClick(image, clickType, offset_x=0, offset_y=0, iniX=0, iniY=0, fimX=
             pyautogui.doubleClick(center_x, center_y, duration=0.5)
         return True
     else:
-        print(f"Imagem não encontrada com OpenCV. Confiança: {max_val:.2f}")
+        imagens_str = ", ".join(images)
+        print(f"❌ Nenhuma das imagens [{imagens_str}] foi encontrada com confiança suficiente")
         return False
 
 def mapear_pastas(icone_path, iniX, iniY, fimX, fimY):
@@ -545,42 +572,72 @@ def esperarPor(image, timeout=30, iniX=0.1, iniY=0.1, fimX=0.23, fimY=0.95, imag
              interrupcao_iniX=None, interrupcao_iniY=None, interrupcao_fimX=None, interrupcao_fimY=None):
     """
     Espera pela aparição de uma imagem em uma região específica da tela.
+    Aceita uma única imagem ou uma lista de imagens para buscar.
     Se uma imagem_interrupcao for fornecida e encontrada, retorna False.
     
     Args:
-        image: Nome do arquivo de imagem a ser procurado na pasta 'images/'
+        image: Nome do arquivo de imagem a ser procurado ou lista de nomes de imagens
         timeout: Tempo máximo de espera em segundos
         iniX, iniY, fimX, fimY: Coordenadas relativas da região de busca para imagem principal
-        imagem_interrupcao: Nome do arquivo de imagem que, se encontrado, interrompe a espera
+        imagem_interrupcao: Nome do arquivo de imagem ou lista de imagens que, se encontradas, interrompem a espera
         interrupcao_iniX, interrupcao_iniY, interrupcao_fimX, interrupcao_fimY: Coordenadas para busca da imagem de interrupção
+        
+    Returns:
+        bool: True se alguma imagem foi encontrada, False caso contrário ou se houve interrupção
+              A imagem encontrada é registrada no log
     """
     start_time = time.time()
     
-    # Carrega a imagem de referência
-    template = cv2.imread(r"images/"+image, cv2.IMREAD_GRAYSCALE)
-    if template is None:
-        mensagem = f"Erro ao carregar imagem '{image}'. Verifique se existe em 'images/'"
-        registrar_log(mensagem, "ERRO")
+    # Converte imagens únicas em listas para processamento uniforme
+    if isinstance(image, str):
+        images = [image]
+    else:
+        images = image
+    
+    # Processa imagens de interrupção
+    interrupcao_images = []
+    if imagem_interrupcao:
+        if isinstance(imagem_interrupcao, str):
+            interrupcao_images = [imagem_interrupcao]
+        else:
+            interrupcao_images = imagem_interrupcao
+    
+    # Carrega todas as imagens principais de uma vez
+    templates = []
+    for img in images:
+        template = cv2.imread(r"images/"+img, cv2.IMREAD_GRAYSCALE)
+        if template is None:
+            mensagem = f"Erro ao carregar imagem '{img}'. Verifique se existe em 'images/'"
+            registrar_log(mensagem, "ERRO")
+            continue
+        templates.append((img, template))
+    
+    if not templates:
+        registrar_log("Nenhuma das imagens pôde ser carregada", "ERRO")
         return False
     
-    # Carrega a imagem de interrupção se fornecida
-    template_interrupcao = None
-    if imagem_interrupcao:
-        template_interrupcao = cv2.imread(r"images/"+imagem_interrupcao, cv2.IMREAD_GRAYSCALE)
-        if template_interrupcao is None:
-            mensagem = f"Erro ao carregar imagem de interrupção '{imagem_interrupcao}'"
+    # Carrega todas as imagens de interrupção
+    interrupcao_templates = []
+    for img in interrupcao_images:
+        template = cv2.imread(r"images/"+img, cv2.IMREAD_GRAYSCALE)
+        if template is None:
+            mensagem = f"Erro ao carregar imagem de interrupção '{img}'"
             registrar_log(mensagem, "ERRO")
-            return False
+            continue
+        interrupcao_templates.append((img, template))
         
-        # Se coordenadas específicas não foram fornecidas, usa as mesmas da imagem principal
-        if interrupcao_iniX is None:
-            interrupcao_iniX = iniX
-        if interrupcao_iniY is None:
-            interrupcao_iniY = iniY
-        if interrupcao_fimX is None:
-            interrupcao_fimX = fimX
-        if interrupcao_fimY is None:
-            interrupcao_fimY = fimY
+    # Se coordenadas específicas não foram fornecidas, usa as mesmas da imagem principal
+    if interrupcao_iniX is None:
+        interrupcao_iniX = iniX
+    if interrupcao_iniY is None:
+        interrupcao_iniY = iniY
+    if interrupcao_fimX is None:
+        interrupcao_fimX = fimX
+    if interrupcao_fimY is None:
+        interrupcao_fimY = fimY
+    
+    # Define um limite de similaridade
+    threshold = 0.7
     
     while time.time() - start_time < timeout:
         # Captura uma captura de tela completa
@@ -598,12 +655,8 @@ def esperarPor(image, timeout=30, iniX=0.1, iniY=0.1, fimX=0.23, fimY=0.95, imag
         regiao = screenshot_np[inicio_y:fim_y, inicio_x:fim_x]
         regiao_gray = cv2.cvtColor(regiao, cv2.COLOR_RGB2GRAY)
         
-        if debug:
-            # Salva apenas a região recortada usada na comparação
-            cv2.imwrite(f"{debug_dir}/regiao_{image}.png", regiao_gray)
-        
-        # Verifica primeiro se a imagem de interrupção foi encontrada
-        if template_interrupcao is not None:
+        # Verifica primeiro se alguma imagem de interrupção foi encontrada
+        if interrupcao_templates:
             # Calcula coordenadas da região de busca para imagem de interrupção
             inicio_x_int = int(largura * interrupcao_iniX)
             fim_x_int = int(largura * interrupcao_fimX)
@@ -614,30 +667,40 @@ def esperarPor(image, timeout=30, iniX=0.1, iniY=0.1, fimX=0.23, fimY=0.95, imag
             regiao_interrupcao = screenshot_np[inicio_y_int:fim_y_int, inicio_x_int:fim_x_int]
             regiao_interrupcao_gray = cv2.cvtColor(regiao_interrupcao, cv2.COLOR_RGB2GRAY)
             
+            # Verifica cada imagem de interrupção
+            for nome_img, template in interrupcao_templates:
+                if debug:
+                    # Salva a região recortada usada na comparação
+                    cv2.imwrite(f"{debug_dir}/regiao_{nome_img}.png", regiao_interrupcao_gray)
+                
+                result_interrupcao = cv2.matchTemplate(regiao_interrupcao_gray, template, cv2.TM_CCOEFF_NORMED)
+                min_val_int, max_val_int, min_loc_int, max_loc_int = cv2.minMaxLoc(result_interrupcao)
+                
+                if max_val_int >= 0.8:  # threshold
+                    mensagem = f"Imagem de interrupção '{nome_img}' encontrada"
+                    registrar_log(mensagem, "AVISO")
+                    return False
+        
+        # Procura cada imagem principal
+        for nome_img, template in templates:
             if debug:
-                # Salva apenas a região recortada usada na comparação
-                cv2.imwrite(f"{debug_dir}/regiao_{imagem_interrupcao}.png", regiao_interrupcao_gray)
+                # Salva a região recortada usada na comparação
+                cv2.imwrite(f"{debug_dir}/regiao_{nome_img}.png", regiao_gray)
             
-            result_interrupcao = cv2.matchTemplate(regiao_interrupcao_gray, template_interrupcao, cv2.TM_CCOEFF_NORMED)
-            min_val_int, max_val_int, min_loc_int, max_loc_int = cv2.minMaxLoc(result_interrupcao)
-            if max_val_int >= 0.8:  # threshold
-                mensagem = f"Imagem de interrupção '{imagem_interrupcao}' encontrada"
-                registrar_log(mensagem, "AVISO")
-                return False
-        
-        # Usa correspondência de modelo para encontrar a imagem principal
-        result = cv2.matchTemplate(regiao_gray, template, cv2.TM_CCOEFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-        
-        # Define um limite de similaridade
-        threshold = 0.7
-        if max_val >= threshold:
-            time.sleep(1)
-            return True
+            # Usa correspondência de modelo para encontrar a imagem principal
+            result = cv2.matchTemplate(regiao_gray, template, cv2.TM_CCOEFF_NORMED)
+            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+            
+            if max_val >= threshold:
+                mensagem = f"Imagem '{nome_img}' encontrada com confiança: {max_val:.2f}"
+                registrar_log(mensagem, "INFO")
+                time.sleep(1)
+                return True
         
         time.sleep(1)
     
-    mensagem = f"Timeout de {timeout} segundos: '{image}' não encontrado"
+    imagens_str = ", ".join([img for img, _ in templates])
+    mensagem = f"Timeout de {timeout} segundos: Nenhuma das imagens [{imagens_str}] foi encontrada"
     registrar_log(mensagem, "AVISO")
     return False
 
@@ -720,6 +783,11 @@ def baixarVF(nome_VF):
     nome_arquivo = re.sub(r'[^\w\-]', '', nome_VF.replace('.', '_'))
     
     registrar_log(f"Iniciando download da VF: {nome_VF}", "INFO")
+
+    if esperarPor("maximizar_vf.png", timeout=5, iniX=0.1, iniY=0.05, fimX=0.7, fimY=0.5):
+        moveAndClick("maximizar_vf.png", "left")
+        time.sleep(0.5)
+    
     esperarPor("main.png", timeout=10, iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.4)
     
     # Encontra as coordenadas Y da imagem main.png
@@ -728,20 +796,20 @@ def baixarVF(nome_VF):
     if esperarPor("separador_coluna.png", timeout=5, iniX=0.11, iniY=y_min, fimX=0.3, fimY=y_max):
         moveAndClick("separador_coluna.png", "right", offset_x=-50)
         time.sleep(0.5)
-        moveAndClick("remover.png", "left")
+        moveAndClick(["remover.png", "remover_en.png"], "left")
         time.sleep(0.5)
 
     
     #Organizar a VF
     if not moveAndClick("main.png", "right"):
         moveAndClick("close_VF.png", "left")
-        esperarPor("continuar_close_vf.png", timeout=10, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
-        moveAndClick("continuar_close_vf.png", "left")
+        esperarPor(["continuar_close_vf.png", "continuar_close_vf_en.png"], timeout=10, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
+        moveAndClick(["continuar_close_vf.png", "continuar_close_vf_en.png"], "left")
         time.sleep(2)
         registrar_log(f"Falha ao clicar em 'main.png' para VF {nome_VF}", "ERRO")
         return False
-    esperarPor("novo.png", timeout=10, iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.95)
-    moveAndClick("novo.png", "left")
+    esperarPor(["novo.png", "novo_en.png"], timeout=10, iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.95)
+    moveAndClick(["novo.png", "novo_en.png"], "left")
     esperarPor("barra.png", timeout=10, iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.95)
     moveAndClick("barra.png", "left")
     time.sleep(0.5)
@@ -751,7 +819,7 @@ def baixarVF(nome_VF):
     time.sleep(0.5)
     pyautogui.write("Main")
     time.sleep(0.5)
-    moveAndClick("inserir.png", "left")
+    moveAndClick(["inserir.png", "inserir_en.png"], "left")
     time.sleep(0.5)
     moveAndClick("name_main.png", "left")
     time.sleep(0.5)
@@ -763,19 +831,19 @@ def baixarVF(nome_VF):
     time.sleep(0.5)
     moveAndClick("object_heading.png", "left")
     time.sleep(0.5)
-    moveAndClick("inserir.png", "left")
+    moveAndClick(["inserir.png", "inserir_en.png"], "left")
     time.sleep(0.5)
     moveAndClick("barra.png", "left")
     time.sleep(0.5)
     moveAndClick("object_number.png", "left")
     time.sleep(0.5)
-    moveAndClick("inserir.png", "left")
+    moveAndClick(["inserir.png", "inserir_en.png"], "left")
     time.sleep(0.5)
     moveAndClick("barra.png", "left")
     time.sleep(0.5)
     moveAndClick("object_level.png", "left")
     time.sleep(0.5)
-    moveAndClick("inserir.png", "left")
+    moveAndClick(["inserir.png", "inserir_en.png"], "left")
     time.sleep(0.5)
     moveAndClick("barra.png", "left")
     time.sleep(0.5)
@@ -785,13 +853,13 @@ def baixarVF(nome_VF):
     time.sleep(0.5)
     pyautogui.write("RegID")
     time.sleep(0.5)
-    moveAndClick("inserir.png", "left")
+    moveAndClick(["inserir.png", "inserir_en.png"], "left")
     time.sleep(0.5)
-    moveAndClick("fechar.png", "left")
+    moveAndClick(["fechar.png", "fechar_en.png"], "left")
     esperarPor("main_text.png", timeout=10, iniX=0.1, iniY=0.1, fimX=1, fimY=0.4)
     moveAndClick("main_text.png", "right", offset_x=200)
-    esperarPor("remover.png", timeout=10, iniX=0.3, iniY=0.05, fimX=1, fimY=0.5)
-    moveAndClick("remover.png", "left")
+    esperarPor(["remover.png", "remover_en.png"], timeout=10, iniX=0.3, iniY=0.05, fimX=1, fimY=0.5)
+    moveAndClick(["remover.png", "remover_en.png"], "left")
     #esperarPor("nome_main.png", timeout=10, iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.95)
     #moveAndClick("nome_main.png", "left")
     #time.sleep(1)
@@ -804,31 +872,30 @@ def baixarVF(nome_VF):
     #moveAndClick("ok.png", "left")
     time.sleep(1)
     #Exportar a VF
-    moveAndClick("arquivo.png", "left")
-    esperarPor("exportar.png", timeout= 30, iniX=0, iniY=0, fimX=0.6, fimY=0.5)
-    moveAndClick("exportar.png", "left")
-    esperarPor("planilha_export.png", timeout= 30, iniX=0, iniY=0, fimX=0.6, fimY=0.5)
-    moveAndClick("planilha_export.png", "left")
-    esperarPor("procurar_export.png", timeout= 30, iniX=0.3, iniY=0.50, fimX=0.6, fimY=0.80)
-    moveAndClick("procurar_export.png", "left")
+    moveAndClick(["arquivo.png", "arquivo_en.png"], "left")
+    esperarPor(["exportar.png", "exportar_en.png"], timeout= 30, iniX=0, iniY=0, fimX=0.6, fimY=0.5)
+    moveAndClick(["exportar.png", "exportar_en.png"], "left")
+    esperarPor(["planilha_export.png", "planilha_export_en.png"], timeout= 30, iniX=0, iniY=0, fimX=0.6, fimY=0.5)
+    moveAndClick(["planilha_export.png", "planilha_export_en.png"], "left")
+    esperarPor(["procurar_export.png", "procurar_export_en.png"], timeout= 30, iniX=0.3, iniY=0.50, fimX=0.6, fimY=0.80)
+    moveAndClick(["procurar_export.png", "procurar_export_en.png"], "left")
     esperarPor("desktop_export.png", timeout= 30, iniX=0.4, iniY=0.2, fimX=0.9, fimY=0.80)
     moveAndClick("desktop_export.png", "left")
     time.sleep(0.5)
-    moveAndClick("abrir_export.png", "left")
-    esperarPor("exportar_csv.png", timeout= 30, iniX=0.3, iniY=0.50, fimX=0.6, fimY=0.80)
-    moveAndClick("exportar_csv.png", "left")
+    moveAndClick(["abrir_export.png", "abrir_export_en.png"], "left")
+    esperarPor(["exportar_csv.png", "exportar_csv_en.png"], timeout= 30, iniX=0.3, iniY=0.50, fimX=0.6, fimY=0.80)
+    moveAndClick(["exportar_csv.png", "exportar_csv_en.png"], "left")
     #Esperando o export acabar
     exportando = True
     while exportando:
         exportando = esperarPor("doors_icon.png", timeout= 5, iniX=0.3, iniY=0.20, fimX=0.6, fimY=0.4)
     #Fechando VF
     moveAndClick("close_VF.png", "left")
-    esperarPor("continuar_close_vf.png", timeout=10, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
-    moveAndClick("continuar_close_vf.png", "left")
+    esperarPor(["continuar_close_vf.png", "continuar_close_vf_en.png"], timeout=10, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
+    moveAndClick(["continuar_close_vf.png", "continuar_close_vf_en.png"], "left")
     time.sleep(2)
     registrar_log(f"Download da VF {nome_VF} concluído com sucesso", "INFO")
     return True
-
 
 def get_pasta_nivel(nome_pasta):
     """
@@ -934,21 +1001,21 @@ def encontrar_posicao_xy(image, iniX=0, iniY=0, fimX=1, fimY=1):
     """
     Procura por uma imagem na tela e retorna suas coordenadas x e y
     como percentual da largura e altura da tela.
+    Aceita uma única imagem ou uma lista de imagens para buscar.
     
     Args:
-        image: Nome do arquivo de imagem a procurar na pasta 'images/'
+        image: Nome do arquivo de imagem a procurar ou lista de nomes de imagens
         iniX, iniY, fimX, fimY: Coordenadas relativas da região de busca
         
     Returns:
         tuple: (x_percentual, y_percentual) - Coordenadas como percentual da tela
                ou (None, None) se a imagem não for encontrada
     """
-    # Carrega a imagem de referência
-    template = cv2.imread(r"images/"+image, cv2.IMREAD_GRAYSCALE)
-    if template is None:
-        mensagem = f"Erro ao carregar imagem '{image}'. Verifique se existe em 'images/'"
-        registrar_log(mensagem, "ERRO")
-        return None, None
+    # Converte uma imagem única em uma lista para processamento uniforme
+    if isinstance(image, str):
+        images = [image]
+    else:
+        images = image
     
     # Captura uma captura de tela completa
     screenshot = pyautogui.screenshot()
@@ -963,47 +1030,74 @@ def encontrar_posicao_xy(image, iniX=0, iniY=0, fimX=1, fimY=1):
     
     # Recorta a região da tela
     regiao = screenshot_np[inicio_y:fim_y, inicio_x:fim_x]
-    regiao_gray = cv2.cvtColor(regiao, cv2.COLOR_RGB2GRAY)
-    
-    # Usa correspondência de modelo para encontrar a imagem
-    result = cv2.matchTemplate(regiao_gray, template, cv2.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
     
     # Define um limite de similaridade
     threshold = 0.7
-    if max_val >= threshold:
+    
+    # Armazena o melhor resultado entre todas as imagens
+    best_score = 0
+    best_loc = None
+    best_image = None
+    
+    # Tenta encontrar cada imagem na região
+    for img in images:
+        # Carrega a imagem de referência e a converte para escala de cinza
+        template = cv2.imread(r"images/"+img, cv2.IMREAD_GRAYSCALE)
+        if template is None:
+            mensagem = f"Erro ao carregar imagem '{img}'. Verifique se existe em 'images/'"
+            registrar_log(mensagem, "ERRO")
+            continue
+        
+        # Converte a região de busca para escala de cinza
+        regiao_gray = cv2.cvtColor(regiao, cv2.COLOR_RGB2GRAY)
+        
+        # Usa correspondência de modelo para encontrar a imagem
+        result = cv2.matchTemplate(regiao_gray, template, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        
+        # Se esta imagem tem uma correspondência melhor que as anteriores
+        if max_val >= threshold and max_val > best_score:
+            best_score = max_val
+            best_loc = max_loc
+            best_image = img
+    
+    # Se encontrou alguma correspondência boa
+    if best_loc is not None:
         # Calcula a posição x e y absoluta
-        x_absoluto = inicio_x + max_loc[0]
-        y_absoluto = inicio_y + max_loc[1]
+        x_absoluto = inicio_x + best_loc[0]
+        y_absoluto = inicio_y + best_loc[1]
         
         # Converte para percentual da tela
         x_percentual = x_absoluto / largura
         y_percentual = y_absoluto / altura
         
+        registrar_log(f"Imagem '{best_image}' encontrada com confiança: {best_score:.2f}", "INFO")
         return x_percentual, y_percentual
     
+    imagens_str = ", ".join(images)
+    registrar_log(f"Nenhuma das imagens [{imagens_str}] foi encontrada", "AVISO")
     return None, None
 
 def procura_projeto(nome):
     
-    esperarPor("ferramentas.png", timeout=30, iniX=0.01, iniY= 0.05, fimX=0.7, fimY=0.4)
-    moveAndClick("ferramentas.png", "left")
-    esperarPor("localizar.png", timeout=30, iniX=0.01, iniY= 0.05, fimX=0.7, fimY=0.4)
-    moveAndClick("localizar.png", "left")
+    esperarPor(["ferramentas.png", "ferramentas_en.png"], timeout=30, iniX=0.01, iniY= 0.05, fimX=0.7, fimY=0.4)
+    moveAndClick(["ferramentas.png", "ferramentas_en.png"], "left")
+    esperarPor(["localizar.png", "localizar_en.png"], timeout=30, iniX=0.01, iniY= 0.05, fimX=0.7, fimY=0.4)
+    moveAndClick(["localizar.png", "localizar_en.png"], "left")
     esperarPor("check_localizar.png", timeout=30, iniX=0.3, iniY=0.2, fimX=7, fimY=0.8)
     pyautogui.write(nome)
     time.sleep(1)
     moveAndClick("check_localizar.png", "left")
     time.sleep(0.5)
     pyautogui.press("enter")
-    if esperarPor("pasta.png",timeout=15, iniX=0.3, iniY=0.4, fimX=0.7, fimY=0.8):
-        moveAndClick("pasta.png", "double", iniX=0.3, iniY=0.4, fimX=0.7, fimY=0.8)
+    if esperarPor("pasta.png",timeout=10, iniX=0.3, iniY=0.4, fimX=0.7, fimY=0.8):
+        moveAndClick(["pasta.png", "pasta_en.png"], "double", iniX=0.3, iniY=0.4, fimX=0.7, fimY=0.8)
         time.sleep(2)
-        moveAndClick("fechar_localizar.png", "left")
+        moveAndClick(["fechar_localizar.png", "fechar_localizar_en.png"], "left")
         time.sleep(1)
         return True
     else:
-        moveAndClick("fechar_localizar.png", "left")
+        moveAndClick(["fechar_localizar.png", "fechar_localizar_en.png"], "left")
         time.sleep(1)
         return False
 
@@ -1011,9 +1105,9 @@ def procura_projeto(nome):
     
 
 
-projetos = ["226", "341", "281", "2651", "291", "5211", "598", "551", "363", "3580"]
+projetos = ["332BEV"]
 dominios = ["Climate", "Comfort Climate"]
-use_cases = []
+use_cases = ["Defroster"]
 VFs = ["VF126"]
 doors = "LATAM"
 # Inicializar planilha de rastreamento
@@ -1200,8 +1294,8 @@ for projeto in projetos:
                         
                         if baixar:
                             clicar_pasta(vf_nome, vf_nomes)
-                            esperarPor("abrir_somente_leitura.png", timeout=30, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
-                            moveAndClick("abrir_somente_leitura.png", "left")
+                            esperarPor(["abrir_somente_leitura.png", "abrir_somente_leitura_en.png"], timeout=30, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
+                            moveAndClick(["abrir_somente_leitura.png", "abrir_somente_leitura_en.png"], "left")
                             esperarPor("main.png", timeout=20, iniX=0.1, iniY=0.1, fimX=0.9, fimY=0.5)
                             sucesso = baixarVF(vf_nome)
                             # Atualiza o registro com o status do download
