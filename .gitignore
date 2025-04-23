@@ -16,6 +16,10 @@ logs/
 *.xlsx
 *.csv
 
+# Arquivos de debug
+debug/
+debug_area/
+
 # Outros
 .env
 .DS_Store 
