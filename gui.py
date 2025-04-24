@@ -13,7 +13,8 @@ class MacroGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("DOORS Macro - VF Downloader")
-        self.root.geometry("900x720")
+        self.root.geometry("800x900")  # Tamanho inicial menor
+        self.root.minsize(600, 900)  # Tamanho mínimo para garantir visibilidade dos botões
         self.root.resizable(True, True)
         
         # Set icon if available
@@ -26,26 +27,26 @@ class MacroGUI:
         main_frame = ttk.Frame(root, padding=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Single settings frame
+        # Settings frame
         settings_frame = ttk.LabelFrame(main_frame, text="Settings", padding=10)
-        settings_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        settings_frame.pack(fill=tk.BOTH, expand=False, padx=5, pady=5)
         
         # Configure settings
         self.setup_settings(settings_frame)
         
-        # Status frame
+        # Status frame - tamanho aumentado
         status_frame = ttk.LabelFrame(main_frame, text="Status", padding=10)
         status_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Status box
-        self.status_text = tk.Text(status_frame, height=6, wrap=tk.WORD, state=tk.DISABLED)
+        # Status box - altura aumentada
+        self.status_text = tk.Text(status_frame, height=8, wrap=tk.WORD, state=tk.DISABLED)
         self.status_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Progress bar
         self.progress = ttk.Progressbar(status_frame, orient=tk.HORIZONTAL, mode='indeterminate')
         self.progress.pack(fill=tk.X, padx=5, pady=5)
         
-        # Buttons frame
+        # Buttons frame - diretamente no main_frame para garantir visibilidade
         buttons_frame = ttk.Frame(main_frame)
         buttons_frame.pack(fill=tk.X, padx=5, pady=5)
         
@@ -77,63 +78,45 @@ class MacroGUI:
         self.countdown_active = False
     
     def setup_settings(self, parent_frame):
-        # Use a grid layout for better organization without scrolling
+        # Use a single column layout for better organization
         parent_frame.columnconfigure(0, weight=1)
-        parent_frame.columnconfigure(1, weight=1)
         
         row = 0
         
-        # Project selection frame - left column
-        project_frame = ttk.LabelFrame(parent_frame, text="Project Selection", padding=10)
-        project_frame.grid(row=row, column=0, sticky="ew", padx=5, pady=5)
-        
-        # Domains frame - right column
-        domains_frame = ttk.LabelFrame(parent_frame, text="Domains", padding=10)
-        domains_frame.grid(row=row, column=1, sticky="ew", padx=5, pady=5)
-        
+        # Project selection frame
+        project_frame = ttk.LabelFrame(parent_frame, text="Project Selection", padding=(15, 10))
+        project_frame.grid(row=row, column=0, sticky="ew", padx=5, pady=10)
         row += 1
-        
-        # Use Cases frame - left column
-        usecases_frame = ttk.LabelFrame(parent_frame, text="Use Cases", padding=10)
-        usecases_frame.grid(row=row, column=0, sticky="ew", padx=5, pady=5)
-        
-        # VFs frame - right column
-        vfs_frame = ttk.LabelFrame(parent_frame, text="VFs", padding=10)
-        vfs_frame.grid(row=row, column=1, sticky="ew", padx=5, pady=5)
-        
-        row += 1
-        
-        # Output directory frame - spans both columns
-        output_frame = ttk.LabelFrame(parent_frame, text="Output Settings", padding=10)
-        output_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         
         # Configure project selection frame
         self.project_method = tk.StringVar(value="manual")
         
         # Radio buttons for project input method
+        radio_frame = ttk.Frame(project_frame)
+        radio_frame.pack(fill=tk.X, padx=5, pady=5)
+        
         ttk.Radiobutton(
-            project_frame, 
+            radio_frame, 
             text="Manual Input", 
             variable=self.project_method, 
             value="manual",
             command=self.toggle_project_input
-        ).pack(anchor=tk.W, padx=5, pady=2)
+        ).pack(side=tk.LEFT, padx=(0, 15), pady=2)
         
         ttk.Radiobutton(
-            project_frame, 
+            radio_frame, 
             text="Load from Excel", 
             variable=self.project_method, 
             value="excel",
             command=self.toggle_project_input
-        ).pack(anchor=tk.W, padx=5, pady=2)
+        ).pack(side=tk.LEFT, padx=5, pady=2)
         
         # Manual project input
         self.manual_frame = ttk.Frame(project_frame)
         self.manual_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        ttk.Label(self.manual_frame, text="Projects (comma separated):").pack(anchor=tk.W, padx=5, pady=2)
         self.projects_var = tk.StringVar()
-        ttk.Entry(self.manual_frame, textvariable=self.projects_var).pack(fill=tk.X, padx=5, pady=2)
+        ttk.Entry(self.manual_frame, textvariable=self.projects_var).pack(fill=tk.X, padx=5, pady=5)
         
         # Excel project input
         self.excel_frame = ttk.Frame(project_frame)
@@ -141,52 +124,67 @@ class MacroGUI:
         self.excel_frame.pack_forget()  # Hide initially
         
         excel_file_frame = ttk.Frame(self.excel_frame)
-        excel_file_frame.pack(fill=tk.X, expand=True)
+        excel_file_frame.pack(fill=tk.X, expand=True, pady=5)
         
-        ttk.Label(excel_file_frame, text="Excel File:").pack(side=tk.LEFT, padx=5, pady=2)
         self.excel_path_var = tk.StringVar()
-        ttk.Entry(excel_file_frame, textvariable=self.excel_path_var, width=25).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=2)
-        ttk.Button(excel_file_frame, text="Browse...", command=self.browse_excel).pack(side=tk.LEFT, padx=5, pady=2)
+        ttk.Entry(excel_file_frame, textvariable=self.excel_path_var).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        ttk.Button(excel_file_frame, text="Browse...", command=self.browse_excel).pack(side=tk.RIGHT, padx=5)
         
         region_frame = ttk.Frame(self.excel_frame)
-        region_frame.pack(fill=tk.X, expand=True, pady=2)
+        region_frame.pack(fill=tk.X, expand=True, pady=5)
         
         ttk.Label(region_frame, text="Region:").pack(side=tk.LEFT, padx=5, pady=2)
         self.region_var = tk.StringVar()
-        region_combobox = ttk.Combobox(region_frame, textvariable=self.region_var, width=15)
-        region_combobox['values'] = ('EMEA', 'NAFTA', 'APAC', 'LATAM')
+        region_combobox = ttk.Combobox(region_frame, textvariable=self.region_var, width=15, state="readonly")
+        region_combobox['values'] = ('EMEA', 'NAFTA', 'LATAM')
         region_combobox.pack(side=tk.LEFT, padx=5, pady=2)
         
+        # Domains frame
+        domains_frame = ttk.LabelFrame(parent_frame, text="Domains", padding=(15, 10))
+        domains_frame.grid(row=row, column=0, sticky="ew", padx=5, pady=10)
+        row += 1
+        
         # Configure domains frame
-        ttk.Label(domains_frame, text="Domains (comma separated):").pack(anchor=tk.W, padx=5, pady=5)
         self.domains_var = tk.StringVar()
         ttk.Entry(domains_frame, textvariable=self.domains_var).pack(fill=tk.X, padx=5, pady=5)
         
+        # Use Cases frame
+        usecases_frame = ttk.LabelFrame(parent_frame, text="Use Cases", padding=(15, 10))
+        usecases_frame.grid(row=row, column=0, sticky="ew", padx=5, pady=10)
+        row += 1
+        
         # Configure use cases frame
-        ttk.Label(usecases_frame, text="Use Cases (comma separated):").pack(anchor=tk.W, padx=5, pady=5)
         self.usecases_var = tk.StringVar()
         ttk.Entry(usecases_frame, textvariable=self.usecases_var).pack(fill=tk.X, padx=5, pady=5)
         
+        # VFs frame
+        vfs_frame = ttk.LabelFrame(parent_frame, text="VFs", padding=(15, 10))
+        vfs_frame.grid(row=row, column=0, sticky="ew", padx=5, pady=10)
+        row += 1
+        
         # Configure VFs frame
-        ttk.Label(vfs_frame, text="VFs (comma separated):").pack(anchor=tk.W, padx=5, pady=5)
         self.vfs_var = tk.StringVar()
         ttk.Entry(vfs_frame, textvariable=self.vfs_var).pack(fill=tk.X, padx=5, pady=5)
+        
+        # Output directory frame
+        output_frame = ttk.LabelFrame(parent_frame, text="Output Settings", padding=(15, 10))
+        output_frame.grid(row=row, column=0, sticky="ew", padx=5, pady=10)
+        row += 1
         
         # Configure output settings
         output_dir_frame = ttk.Frame(output_frame)
         output_dir_frame.pack(fill=tk.X, expand=True, padx=5, pady=5)
         
-        ttk.Label(output_dir_frame, text="Output Directory:").pack(side=tk.LEFT, padx=5, pady=2)
         self.output_dir_var = tk.StringVar()
-        ttk.Entry(output_dir_frame, textvariable=self.output_dir_var).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=2)
-        ttk.Button(output_dir_frame, text="Browse...", command=self.browse_output_dir).pack(side=tk.LEFT, padx=5, pady=2)
+        ttk.Entry(output_dir_frame, textvariable=self.output_dir_var).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        ttk.Button(output_dir_frame, text="Browse...", command=self.browse_output_dir).pack(side=tk.RIGHT, padx=5)
         
         # Debug checkbox
         debug_frame = ttk.Frame(output_frame)
         debug_frame.pack(fill=tk.X, expand=True, padx=5, pady=5)
         
         self.debug_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(debug_frame, text="Enable Debug Mode", variable=self.debug_var).pack(anchor=tk.W, padx=5, pady=2)
+        ttk.Checkbutton(debug_frame, text="Enable Debug Mode", variable=self.debug_var).pack(anchor=tk.W, padx=5)
     
     def toggle_project_input(self):
         if self.project_method.get() == "manual":
