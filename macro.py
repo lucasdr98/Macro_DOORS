@@ -160,12 +160,13 @@ def extrair_versao_vf(nome_completo):
         return match.group(1)
     return extrair_codigo_vf(nome_completo)
 
-def criar_planilha_vfs(projetos):
+def criar_planilha_vfs(projetos, output_dir=None):
     """
     Cria uma planilha Excel para rastrear as VFs encontradas
     
     Args:
         projetos: Lista de projetos que serão as colunas da planilha
+        output_dir: Diretório onde a planilha será salva (opcional)
     """
     # Colunas fixas iniciais
     colunas = ['Folder', 'VF'] + projetos
@@ -175,7 +176,18 @@ def criar_planilha_vfs(projetos):
     
     # Nome do arquivo com timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    nome_arquivo = f"Climate_VFs_{timestamp}.xlsx"
+    
+    # Se o diretório de saída foi especificado
+    if output_dir:
+        # Cria o diretório se não existir
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        # Caminho completo do arquivo
+        nome_arquivo = os.path.join(output_dir, f"Climate_VFs_{timestamp}.xlsx")
+    else:
+        # Caminho padrão no diretório atual
+        nome_arquivo = f"Climate_VFs_{timestamp}.xlsx"
     
     # Salvar arquivo
     df.to_excel(nome_arquivo, index=False)
@@ -185,6 +197,16 @@ def criar_planilha_vfs(projetos):
 def adicionar_vf_planilha(df, nome_arquivo, folder, vf_info, projeto):
     """
     Adiciona ou atualiza uma VF na planilha
+    
+    Args:
+        df: DataFrame com os dados atuais
+        nome_arquivo: Caminho completo do arquivo onde salvar a planilha
+        folder: Nome da pasta onde a VF foi encontrada
+        vf_info: Informações da VF
+        projeto: Nome do projeto
+        
+    Returns:
+        DataFrame atualizado
     """
     nome_completo = vf_info['texto_original']
     nome_base = extrair_versao_vf(nome_completo)  # Retorna VFxxx_Vx
@@ -772,12 +794,13 @@ def encontrar_coordenadas_y_main(iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.6):
     registrar_log("Could not find Y coordinates of the main.png image", "WARNING")
     return (0.1, 0.4)
 
-def baixarVF(nome_VF):
+def baixarVF(nome_VF, output_dir=None):
     """
     Baixa uma VF e salva como arquivo Excel
     
     Args:
         nome_VF: Nome original da VF
+        output_dir: Diretório onde salvar o arquivo exportado (opcional)
         
     Returns:
         bool: True se o download foi bem sucedido, False caso contrário
@@ -873,6 +896,9 @@ def baixarVF(nome_VF):
     moveAndClick(["planilha_export.png", "planilha_export_en.png"], "left")
     esperarPor(["procurar_export.png", "procurar_export_en.png"], timeout= 30, iniX=0.3, iniY=0.50, fimX=0.6, fimY=0.80)
     moveAndClick(["procurar_export.png", "procurar_export_en.png"], "left")
+    
+    # Neste ponto, se tivéssemos acesso ao diálogo de arquivo do sistema, 
+    # poderíamos inserir o caminho completo, mas usando automação temos limitações
     esperarPor("desktop_export.png", timeout= 30, iniX=0.4, iniY=0.2, fimX=0.9, fimY=0.80)
     moveAndClick("desktop_export.png", "left")
     time.sleep(0.5)
@@ -887,6 +913,29 @@ def baixarVF(nome_VF):
     exportando = True
     while exportando:
         exportando = esperarPor("doors_icon.png", timeout= 5, iniX=0.3, iniY=0.20, fimX=0.6, fimY=0.4)
+    
+    # Se tiver um diretório de saída, tenta mover o arquivo para lá depois de exportado
+    if output_dir:
+        try:
+            # Cria o diretório se não existir
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+                
+            # Nome esperado do arquivo no Desktop (o código atual salva no Desktop)
+            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+            arquivo_csv = os.path.join(desktop_path, f"{nome_VF}.csv")
+            
+            # Verifica se o arquivo existe
+            if os.path.exists(arquivo_csv):
+                # Determina o caminho de destino
+                destino = os.path.join(output_dir, f"{nome_VF}.csv")
+                # Move o arquivo
+                import shutil
+                shutil.move(arquivo_csv, destino)
+                registrar_log(f"Successfully moved exported file to: {destino}", "INFO")
+        except Exception as e:
+            registrar_log(f"Error moving exported file to output directory: {str(e)}", "ERROR")
+    
     #Fechando VF
     moveAndClick("close_VF.png", "left")
     esperarPor(["continuar_close_vf.png", "continuar_close_vf_en.png"], timeout=10, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
@@ -1110,7 +1159,7 @@ def filtrar_codigos_por_regiao(caminho_planilha, regiao):
     Returns:
         list: List of "Old Code" values that match the region and have 
               "Development Phase" different from 'obsolete' or 'inactive'
-              Empty values or '-' in "Old Code" are ignored
+              All values are returned as strings.
     """
     try:
         # Read the Excel file
@@ -1155,8 +1204,8 @@ def filtrar_codigos_por_regiao(caminho_planilha, regiao):
             registrar_log(f"No valid codes found for region: {regiao} after filtering", "WARNING")
             return []
             
-        # Extract the "Old Code" values into a list
-        codigos = df_filtered["Old Code"].tolist()
+        # Extract the "Old Code" values into a list and convert all to strings
+        codigos = [str(codigo).strip() for codigo in df_filtered["Old Code"].tolist() if codigo is not None]
         
         # Log the number of codes found
         registrar_log(f"Found {len(codigos)} active codes for region: {regiao}", "INFO")
@@ -1167,7 +1216,7 @@ def filtrar_codigos_por_regiao(caminho_planilha, regiao):
         registrar_log(f"Error processing spreadsheet: {str(e)}", "ERROR")
         return []
 
-def main_logic(projetos, dominios, use_cases, VFs):
+def main_logic(projetos, dominios, use_cases, VFs, output_dir=None):
     """
     Função principal do macro que executa a lógica de busca e download das VFs
     
@@ -1176,9 +1225,10 @@ def main_logic(projetos, dominios, use_cases, VFs):
         dominios: Lista de domínios para filtrar
         use_cases: Lista de casos de uso para filtrar
         VFs: Lista de VFs para baixar
+        output_dir: Diretório onde a planilha será salva (opcional)
     """
     # Inicializar planilha de rastreamento
-    df_vfs, nome_arquivo_vfs = criar_planilha_vfs(projetos)
+    df_vfs, nome_arquivo_vfs = criar_planilha_vfs(projetos, output_dir)
 
     time.sleep(5)
 
@@ -1364,7 +1414,7 @@ def main_logic(projetos, dominios, use_cases, VFs):
                                 esperarPor(["abrir_somente_leitura.png", "abrir_somente_leitura_en.png"], timeout=30, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
                                 moveAndClick(["abrir_somente_leitura.png", "abrir_somente_leitura_en.png"], "left")
                                 esperarPor("main.png", timeout=20, iniX=0.1, iniY=0.1, fimX=0.9, fimY=0.5)
-                                sucesso = baixarVF(vf_nome)
+                                sucesso = baixarVF(vf_nome, output_dir)
                                 # Atualiza o registro com o status do download
                                 registrar_caminho(
                                     projeto=projeto,
@@ -1436,7 +1486,7 @@ def main_logic(projetos, dominios, use_cases, VFs):
                                         time.sleep(1)
                                         moveAndClick("abrir_somente_leitura.png", "left")
                                         esperarPor("main.png", timeout=20, iniX=0.1, iniY=0.1, fimX=0.9, fimY=0.5)
-                                        sucesso = baixarVF(vf_nome)
+                                        sucesso = baixarVF(vf_nome, output_dir)
                                         # Atualiza o registro com o status do download
                                         registrar_caminho(
                                             projeto=projeto,

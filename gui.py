@@ -337,10 +337,14 @@ class MacroGUI:
                 
                 # Call macro.filtrar_codigos_por_regiao to get projects
                 try:
-                    projects_list = macro.filtrar_codigos_por_regiao(
+                    # Get projects from Excel file
+                    raw_projects_list = macro.filtrar_codigos_por_regiao(
                         self.excel_path_var.get(),
                         self.region_var.get()
                     )
+                    
+                    # Convert all items to strings to avoid type errors
+                    projects_list = [str(p).strip() for p in raw_projects_list if p is not None]
                     
                     if not projects_list:
                         self.log(f"No projects found for region {self.region_var.get()} in the Excel file.")
@@ -393,7 +397,7 @@ class MacroGUI:
             # Call the main_logic function with our parameters
             try:
                 # Execute the main logic function
-                macro.main_logic(projects_list, domains_list, usecases_list, vfs_list)
+                macro.main_logic(projects_list, domains_list, usecases_list, vfs_list, self.output_dir)
                 self.log("Macro execution completed successfully!")
                 
             except Exception as e:
