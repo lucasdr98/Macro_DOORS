@@ -68,7 +68,7 @@ if __name__ == "__main__":
     try:
         while True:
             # Você pode modificar estes valores para testar diferentes áreas
-            testar_area_captura(iniX=0.1, iniY=0.05, fimX=0.7, fimY=0.5)
+            testar_area_captura(iniX=0.25, iniY=0.3, fimX=0.7, fimY=0.7)
             time.sleep(2)  # Espera 2 segundos antes de atualizar
             
     except KeyboardInterrupt:
