@@ -17,7 +17,7 @@ pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tessera
 root = tkinter.Tk()
 root.withdraw()
 
-debug = True
+debug = False
 debug_dir = "debug"
 if not os.path.exists(debug_dir):
     os.makedirs(debug_dir)
@@ -48,9 +48,9 @@ def limpar_arquivos_antigos(diretorio, prefixo, max_arquivos=10):
         for arquivo in arquivos[:-max_arquivos]:
             try:
                 os.remove(os.path.join(diretorio, arquivo))
-                print(f"Arquivo antigo removido: {arquivo}")
+                print(f"Old file removed: {arquivo}")
             except Exception as e:
-                print(f"Erro ao remover arquivo {arquivo}: {e}")
+                print(f"Error removing file {arquivo}: {e}")
 
 # Gera nomes únicos para os arquivos de log desta execução
 timestamp_execucao = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -66,25 +66,25 @@ limpar_arquivos_antigos(logs_dir, "caminhos_", 10)
 
 def registrar_log(mensagem, tipo="INFO"):
     """
-    Registra uma mensagem no arquivo de log
+    Records a message in the log file
     
     Args:
-        mensagem: Mensagem a ser registrada
-        tipo: Tipo da mensagem (INFO, ERRO, AVISO)
+        mensagem: Message to be recorded
+        tipo: Message type (INFO, ERROR, WARNING)
     """
     data = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # Formata a mensagem
+    # Format the message
     log_entry = f"[{data}] [{tipo}] {mensagem}\n"
     
-    # Salva no arquivo
+    # Save to file
     with open(nome_arquivo_log, "a", encoding='utf-8') as f:
         f.write(log_entry)
     
-    # Se for erro, também mostra no console
-    if tipo == "ERRO":
+    # If it's an error, also show in console
+    if tipo == "ERROR":
         print(f"❌ {mensagem}")
-    elif tipo == "AVISO":
+    elif tipo == "WARNING":
         print(f"⚠️ {mensagem}")
 
 def registrar_caminho(projeto, pasta_nivel, pasta_requisitos, dominio, pasta_use_case, sub_pasta=None, vf_nome=None, baixada=None, pasta_vazia=False):
@@ -174,7 +174,7 @@ def criar_planilha_vfs(projetos):
     
     # Salvar arquivo
     df.to_excel(nome_arquivo, index=False)
-    print(f"✅ Planilha criada: {nome_arquivo}")
+    print(f"✅ Spreadsheet created: {nome_arquivo}")
     return df, nome_arquivo
 
 def adicionar_vf_planilha(df, nome_arquivo, folder, vf_info, projeto):
@@ -322,14 +322,14 @@ def mapear_pastas(icone_path, iniX, iniY, fimX, fimY):
     # Verifica se o arquivo de referência do ícone existe
     if not os.path.exists(icone_path):
         mensagem = f"Arquivo de ícone '{icone_path}' não encontrado!"
-        registrar_log(mensagem, "ERRO")
+        registrar_log(mensagem, "ERROR")
         return {}
     
     # Carrega a imagem do ícone e converte para escala de cinza
     icone_pasta = cv2.imread(icone_path, cv2.IMREAD_GRAYSCALE)
     if icone_pasta is None:
         mensagem = f"Erro ao carregar o ícone de pasta!"
-        registrar_log(mensagem, "ERRO")
+        registrar_log(mensagem, "ERROR")
         return {}
     
     # Captura a tela
@@ -494,7 +494,7 @@ def clicar_pasta(nome_pasta, mapa_pastas):
     
     if mapa_pastas is None or len(mapa_pastas) == 0:
         mensagem = f"Não há mapeamento de pastas disponível para '{nome_pasta}'"
-        registrar_log(mensagem, "ERRO")
+        registrar_log(mensagem, "ERROR")
         return False
     
     # Busca pela pasta no mapa
@@ -531,7 +531,7 @@ def clicar_pasta(nome_pasta, mapa_pastas):
     
     if pasta_encontrada:
         pasta_texto = pasta_encontrada['texto_original']
-        registrar_log(f"Pasta '{pasta_texto}' encontrada e clicada com sucesso", "INFO")
+        registrar_log(f"Folder '{pasta_texto}' found and clicked successfully", "INFO")
         
         # Clica na pasta
         click_x = pasta_encontrada['x']
@@ -564,8 +564,8 @@ def clicar_pasta(nome_pasta, mapa_pastas):
         pyautogui.doubleClick(click_x, click_y, duration=0.5)
         return True
     else:
-        mensagem = f"Pasta '{nome_pasta}' não encontrada no mapeamento"
-        registrar_log(mensagem, "ERRO")
+        mensagem = f"Folder '{nome_pasta}' not found in the mapping"
+        registrar_log(mensagem, "ERROR")
         return False
 
 def esperarPor(image, timeout=30, iniX=0.1, iniY=0.1, fimX=0.23, fimY=0.95, imagem_interrupcao=None, 
@@ -607,13 +607,13 @@ def esperarPor(image, timeout=30, iniX=0.1, iniY=0.1, fimX=0.23, fimY=0.95, imag
     for img in images:
         template = cv2.imread(r"images/"+img, cv2.IMREAD_GRAYSCALE)
         if template is None:
-            mensagem = f"Erro ao carregar imagem '{img}'. Verifique se existe em 'images/'"
-            registrar_log(mensagem, "ERRO")
+            mensagem = f"Image '{img}' loading error. Check if it exists in 'images/'"
+            registrar_log(mensagem, "ERROR")
             continue
         templates.append((img, template))
     
     if not templates:
-        registrar_log("Nenhuma das imagens pôde ser carregada", "ERRO")
+        registrar_log("None of the images could be loaded", "ERROR")
         return False
     
     # Carrega todas as imagens de interrupção
@@ -622,7 +622,7 @@ def esperarPor(image, timeout=30, iniX=0.1, iniY=0.1, fimX=0.23, fimY=0.95, imag
         template = cv2.imread(r"images/"+img, cv2.IMREAD_GRAYSCALE)
         if template is None:
             mensagem = f"Erro ao carregar imagem de interrupção '{img}'"
-            registrar_log(mensagem, "ERRO")
+            registrar_log(mensagem, "ERROR")
             continue
         interrupcao_templates.append((img, template))
         
@@ -677,8 +677,8 @@ def esperarPor(image, timeout=30, iniX=0.1, iniY=0.1, fimX=0.23, fimY=0.95, imag
                 min_val_int, max_val_int, min_loc_int, max_loc_int = cv2.minMaxLoc(result_interrupcao)
                 
                 if max_val_int >= 0.8:  # threshold
-                    mensagem = f"Imagem de interrupção '{nome_img}' encontrada"
-                    registrar_log(mensagem, "AVISO")
+                    mensagem = f"Interruption image '{nome_img}' found"
+                    registrar_log(mensagem, "WARNING")
                     return False
         
         # Procura cada imagem principal
@@ -692,7 +692,7 @@ def esperarPor(image, timeout=30, iniX=0.1, iniY=0.1, fimX=0.23, fimY=0.95, imag
             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
             
             if max_val >= threshold:
-                mensagem = f"Imagem '{nome_img}' encontrada com confiança: {max_val:.2f}"
+                mensagem = f"Image '{nome_img}' found with confidence: {max_val:.2f}"
                 registrar_log(mensagem, "INFO")
                 time.sleep(1)
                 return True
@@ -700,8 +700,7 @@ def esperarPor(image, timeout=30, iniX=0.1, iniY=0.1, fimX=0.23, fimY=0.95, imag
         time.sleep(1)
     
     imagens_str = ", ".join([img for img, _ in templates])
-    mensagem = f"Timeout de {timeout} segundos: Nenhuma das imagens [{imagens_str}] foi encontrada"
-    registrar_log(mensagem, "AVISO")
+    registrar_log(f"Timeout of {timeout} seconds: None of the images [{imagens_str}] was found", "WARNING")
     return False
 
 def encontrar_coordenadas_y_main(iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.6):
@@ -720,7 +719,7 @@ def encontrar_coordenadas_y_main(iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.6):
     template = cv2.imread(r"images/main.png", cv2.IMREAD_GRAYSCALE)
     if template is None:
         mensagem = f"Erro ao carregar imagem 'main.png'. Verifique se existe em 'images/'"
-        registrar_log(mensagem, "ERRO")
+        registrar_log(mensagem, "ERROR")
         return (0.1, 0.4)  # Valores padrão
     
     # Captura uma screenshot da tela
@@ -765,7 +764,7 @@ def encontrar_coordenadas_y_main(iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.6):
         return (y_min_rel, y_max_rel)
     
     # Se não encontrou, retorna valores padrão
-    registrar_log("Não foi possível encontrar coordenadas Y da imagem main.png", "AVISO")
+    registrar_log("Could not find Y coordinates of the main.png image", "WARNING")
     return (0.1, 0.4)
 
 def baixarVF(nome_VF):
@@ -782,7 +781,7 @@ def baixarVF(nome_VF):
     # Mantém apenas letras, números, underscores e hífens
     nome_arquivo = re.sub(r'[^\w\-]', '', nome_VF.replace('.', '_'))
     
-    registrar_log(f"Iniciando download da VF: {nome_VF}", "INFO")
+    registrar_log(f"Starting download of VF: {nome_VF}", "INFO")
 
     if esperarPor("maximizar_vf.png", timeout=5, iniX=0.1, iniY=0.05, fimX=0.7, fimY=0.5):
         moveAndClick("maximizar_vf.png", "left")
@@ -806,7 +805,7 @@ def baixarVF(nome_VF):
         esperarPor(["continuar_close_vf.png", "continuar_close_vf_en.png"], timeout=10, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
         moveAndClick(["continuar_close_vf.png", "continuar_close_vf_en.png"], "left")
         time.sleep(2)
-        registrar_log(f"Falha ao clicar em 'main.png' para VF {nome_VF}", "ERRO")
+        registrar_log(f"Failed to click on 'main.png' for VF {nome_VF}", "ERROR")
         return False
     esperarPor(["novo.png", "novo_en.png"], timeout=10, iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.95)
     moveAndClick(["novo.png", "novo_en.png"], "left")
@@ -875,6 +874,10 @@ def baixarVF(nome_VF):
     moveAndClick(["abrir_export.png", "abrir_export_en.png"], "left")
     esperarPor(["exportar_csv.png", "exportar_csv_en.png"], timeout= 30, iniX=0.3, iniY=0.50, fimX=0.6, fimY=0.80)
     moveAndClick(["exportar_csv.png", "exportar_csv_en.png"], "left")
+    #Checando se tem repetido
+    if esperarPor(["confirmar_sobrescrever.png", "confirmar_sobrescrever_en.png"], timeout= 5, iniX=0.25, iniY=0.3, fimX=0.7, fimY=0.7):
+        moveAndClick(["confirmar_sobrescrever.png", "confirmar_sobrescrever_en.png"], "left")
+        time.sleep(0.5)
     #Esperando o export acabar
     exportando = True
     while exportando:
@@ -884,7 +887,7 @@ def baixarVF(nome_VF):
     esperarPor(["continuar_close_vf.png", "continuar_close_vf_en.png"], timeout=10, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
     moveAndClick(["continuar_close_vf.png", "continuar_close_vf_en.png"], "left")
     time.sleep(2)
-    registrar_log(f"Download da VF {nome_VF} concluído com sucesso", "INFO")
+    registrar_log(f"Download of VF {nome_VF} completed successfully", "INFO")
     return True
 
 def get_pasta_nivel(nome_pasta):
@@ -1035,7 +1038,7 @@ def encontrar_posicao_xy(image, iniX=0, iniY=0, fimX=1, fimY=1):
         template = cv2.imread(r"images/"+img, cv2.IMREAD_GRAYSCALE)
         if template is None:
             mensagem = f"Erro ao carregar imagem '{img}'. Verifique se existe em 'images/'"
-            registrar_log(mensagem, "ERRO")
+            registrar_log(mensagem, "ERROR")
             continue
         
         # Converte a região de busca para escala de cinza
@@ -1061,11 +1064,11 @@ def encontrar_posicao_xy(image, iniX=0, iniY=0, fimX=1, fimY=1):
         x_percentual = x_absoluto / largura
         y_percentual = y_absoluto / altura
         
-        registrar_log(f"Imagem '{best_image}' encontrada com confiança: {best_score:.2f}", "INFO")
+        registrar_log(f"Image '{best_image}' found with confidence: {best_score:.2f}", "INFO")
         return x_percentual, y_percentual
     
     imagens_str = ", ".join(images)
-    registrar_log(f"Nenhuma das imagens [{imagens_str}] foi encontrada", "AVISO")
+    registrar_log(f"None of the images [{imagens_str}] was found", "WARNING")
     return None, None
 
 def procura_projeto(nome):
@@ -1106,13 +1109,13 @@ time.sleep(5)
     #Clicando no botão projetos
 if not moveAndClick("projects.png", "left"):
     print("❌ Parando")
-    messagebox.showerror("Timeout", "O reconhecimento de imagem falhou")        
+    messagebox.showerror("Timeout", "Image recognition failed")        
     exit()
 
 for projeto in projetos:
 
     if not procura_projeto(projeto):
-        registrar_log(f"Projeto {projeto} não encontrado. Continuando para o próximo projeto.", "AVISO")
+        registrar_log(f"Project {projeto} not found. Continuing to the next project.", "WARNING")
         continue
 
     voltar = 7
@@ -1125,7 +1128,7 @@ for projeto in projetos:
         # Usa valores padrão se não encontrou a imagem
         if pos_x is None:
             pos_x, pos_y = 0.3, 0.1  # Valores padrão
-            registrar_log("Não foi possível encontrar tipo_menu.png, usando coordenadas padrão", "AVISO")
+            registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
         
         pastas_niveis = mapear_pastas(icone_path="images/pasta.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
         
@@ -1135,12 +1138,12 @@ for projeto in projetos:
             print(f"Selecionando pasta de maior nível: {pasta_maior_nivel}")
             clicar_pasta(pasta_maior_nivel, pastas_niveis)
         else:
-            registrar_log(f"Nenhuma pasta válida encontrada no projeto {projeto}", "ERRO")
-            messagebox.showerror("Erro", "Nenhuma pasta válida encontrada no projeto")
+            registrar_log(f"No valid folder found in project {projeto}", "ERROR")
+            messagebox.showerror("Erro", "No valid folder found in project")
             exit()
     else:
-        registrar_log("Falha ao mapear pastas de nível", "ERRO")
-        messagebox.showerror("Timeout", "o reconhecimento de imagem falhou")
+        registrar_log("Failed to map level folders", "ERROR")
+        messagebox.showerror("Timeout", "Image recognition failed")
         exit()
 
     # Procura e clica em Functional Requirements
@@ -1150,25 +1153,25 @@ for projeto in projetos:
         # Usa valores padrão se não encontrou a imagem
         if pos_x is None:
             pos_x, pos_y = 0.3, 0.1  # Valores padrão
-            registrar_log("Não foi possível encontrar tipo_menu.png, usando coordenadas padrão", "AVISO")
+            registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
             
         pastas_requerimentos = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
         
         pasta_requisitos = encontrar_pasta_requisitos(pastas_requerimentos)
         if pasta_requisitos:
             if not clicar_pasta(pasta_requisitos, pastas_requerimentos):
-                registrar_log(f"Erro ao clicar na pasta de requisitos em {projeto}", "ERRO")
-                messagebox.showerror("Erro", "Erro ao clicar na pasta de requisitos funcionais")
+                registrar_log(f"Error clicking on requirements folder in {projeto}", "ERROR")
+                messagebox.showerror("Erro", "Error clicking on requirements folder")
                 exit()
             
         else:
-            registrar_log(f"Pasta de requisitos funcionais não encontrada em {projeto}", "ERRO")
-            messagebox.showerror("Erro", "Pasta de requisitos funcionais não encontrada")
+            registrar_log(f"Functional requirements folder not found in {projeto}", "ERROR")
+            messagebox.showerror("Erro", "Functional requirements folder not found")
             
             exit()
     else:
-        registrar_log("Falha ao mapear pasta de requisitos", "ERRO")
-        messagebox.showerror("Timeout", "o reconhecimento de imagem falhou")
+        registrar_log("Failed to map requirements folder", "ERROR")
+        messagebox.showerror("Timeout", "Image recognition failed")
         exit()
 
     if esperarPor("pasta_amarela.png"):
@@ -1176,7 +1179,7 @@ for projeto in projetos:
         # Usa valores padrão se não encontrou a imagem
         if pos_x is None:
             pos_x, pos_y = 0.3, 0.1  # Valores padrão
-            registrar_log("Não foi possível encontrar tipo_menu.png, usando coordenadas padrão", "AVISO")
+            registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
             
         pastas_dominios = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
         
@@ -1193,7 +1196,7 @@ for projeto in projetos:
                 break
         
         if dominio_encontrado:
-            registrar_log(f"Domínio encontrado: {dominio_encontrado}", "INFO")
+            registrar_log(f"Domain found: {dominio_encontrado}", "INFO")
             clicar_pasta(dominio_encontrado, pastas_dominios)
             time.sleep(1)
             if esperarPor("pasta_amarela.png"):
@@ -1201,7 +1204,7 @@ for projeto in projetos:
                 # Usa valores padrão se não encontrou a imagem
                 if pos_x is None:
                     pos_x, pos_y = 0.3, 0.1  # Valores padrão
-                    registrar_log("Não foi possível encontrar tipo_menu.png, usando coordenadas padrão", "AVISO")
+                    registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
                     
                 pastas_use_cases = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
                 print(pastas_use_cases)
@@ -1218,10 +1221,10 @@ for projeto in projetos:
                     
                     # Atualiza a lista de use cases para processar apenas os encontrados
                     if use_cases_encontrados:
-                        registrar_log(f"Use cases encontrados: {', '.join(use_cases_encontrados)}", "INFO")
+                        registrar_log(f"Use cases found: {', '.join(use_cases_encontrados)}", "INFO")
                         pastas_para_processar = use_cases_encontrados
                     else:
-                        registrar_log(f"Nenhum dos use cases especificados foi encontrado", "AVISO")
+                        registrar_log(f"None of the specified use cases was found", "WARNING")
                         continue
                 else:
                     # Se use_cases estiver vazia, processa todos os use cases encontrados
@@ -1236,7 +1239,7 @@ for projeto in projetos:
                     # Usa valores padrão se não encontrou a imagem
                     if pos_x is None:
                         pos_x, pos_y = 0.3, 0.1  # Valores padrão
-                        registrar_log("Não foi possível encontrar tipo_menu.png, usando coordenadas padrão", "AVISO")
+                        registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
                         
                     sub_pastas = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
                     vf_nomes = mapear_pastas(icone_path="images/icone_vf.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
@@ -1304,7 +1307,7 @@ for projeto in projetos:
                             # Usa valores padrão se não encontrou a imagem
                             if pos_x is None:
                                 pos_x, pos_y = 0.3, 0.1  # Valores padrão
-                                registrar_log("Não foi possível encontrar tipo_menu.png, usando coordenadas padrão", "AVISO")
+                                registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
                                 
                             vf_nomes = mapear_pastas(icone_path="images/icone_vf.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
                             
@@ -1378,17 +1381,17 @@ for projeto in projetos:
         else:
             # Lista os domínios encontrados no mapa
             dominios_encontrados = [nome_pasta for nome_pasta in pastas_dominios.keys()]
-            registrar_log(f"Nenhum dos domínios especificados foi encontrado no projeto {projeto}. Domínios disponíveis: {', '.join(dominios_encontrados)}", "AVISO")
+            registrar_log(f"None of the specified domains was found in project {projeto}. Available domains: {', '.join(dominios_encontrados)}", "WARNING")
             voltar = 4
     else:
-        registrar_log("Falha ao mapear pastas de domínio", "ERRO")
-        messagebox.showerror("Timeout", "o reconhecimento de imagem falhou")
+        registrar_log("Failed to map domain folders", "ERROR")
+        messagebox.showerror("Timeout", "Image recognition failed")
         exit()
     
     voltar_nivel(voltar)
     moveAndClick("projects.png", "left")
     time.sleep(0.5)
 
-print(f"\n✅ Processo concluído! A planilha foi salva em: {nome_arquivo_vfs}")
-messagebox.showinfo("Concluído", f"Processo finalizado!\nA planilha foi salva em:\n{nome_arquivo_vfs}")
+print(f"\n✅ Process completed! The spreadsheet was saved at: {nome_arquivo_vfs}")
+messagebox.showinfo("Completed", f"Process finished!\nThe spreadsheet was saved at:\n{nome_arquivo_vfs}")
 
