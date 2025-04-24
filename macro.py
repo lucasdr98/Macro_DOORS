@@ -1094,6 +1094,74 @@ def procura_projeto(nome):
         time.sleep(1)
         return False
 
+def filtrar_codigos_por_regiao(caminho_planilha, regiao):
+    """
+    Reads an Excel spreadsheet and filters codes by region and development phase
+    
+    Args:
+        caminho_planilha: Path to the Excel file
+        regiao: Region to filter (e.g., 'EMEA', 'NAFTA', etc.)
+        
+    Returns:
+        list: List of "Old Code" values that match the region and have 
+              "Development Phase" different from 'obsolete' or 'inactive'
+              Empty values or '-' in "Old Code" are ignored
+    """
+    try:
+        # Read the Excel file
+        df = pd.read_excel(caminho_planilha)
+        
+        # Log the columns found in the file
+        registrar_log(f"Columns found in the spreadsheet: {', '.join(df.columns)}", "INFO")
+        
+        # Check if required columns exist
+        required_columns = ["Region", "Old Code", "Development Phase"]
+        for col in required_columns:
+            if col not in df.columns:
+                registrar_log(f"Required column '{col}' not found in the spreadsheet", "ERROR")
+                return []
+        
+        # Filter by region
+        df_filtered = df[df["Region"] == regiao]
+        
+        if len(df_filtered) == 0:
+            registrar_log(f"No entries found for region: {regiao}", "WARNING")
+            return []
+            
+        # Filter out obsolete and inactive development phases
+        df_filtered = df_filtered[~df_filtered["Development Phase"].str.lower().isin(["obsolete", "inactive"])]
+        
+        if len(df_filtered) == 0:
+            registrar_log(f"No active entries found for region: {regiao}", "WARNING")
+            return []
+            
+        # Filter out empty values or '-' in "Old Code"
+        df_filtered = df_filtered[
+            (~df_filtered["Old Code"].isna()) &  # Remove NaN values
+            (df_filtered["Old Code"] != "") &    # Remove empty strings
+            (df_filtered["Old Code"] != "-")     # Remove dash character
+        ]
+        
+        # Log if any rows were filtered out due to empty or '-' values
+        if len(df_filtered) < len(df[df["Region"] == regiao]):
+            registrar_log(f"Filtered out {len(df[df['Region'] == regiao]) - len(df_filtered)} rows with empty or '-' values in 'Old Code'", "INFO")
+        
+        if len(df_filtered) == 0:
+            registrar_log(f"No valid codes found for region: {regiao} after filtering", "WARNING")
+            return []
+            
+        # Extract the "Old Code" values into a list
+        codigos = df_filtered["Old Code"].tolist()
+        
+        # Log the number of codes found
+        registrar_log(f"Found {len(codigos)} active codes for region: {regiao}", "INFO")
+        
+        return codigos
+        
+    except Exception as e:
+        registrar_log(f"Error processing spreadsheet: {str(e)}", "ERROR")
+        return []
+
 
 
 projetos = ["312MCA"]
