@@ -860,16 +860,6 @@ def baixarVF(nome_VF):
     moveAndClick("main_text.png", "right", offset_x=200)
     esperarPor(["remover.png", "remover_en.png"], timeout=10, iniX=0.3, iniY=0.05, fimX=1, fimY=0.5)
     moveAndClick(["remover.png", "remover_en.png"], "left")
-    #esperarPor("nome_main.png", timeout=10, iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.95)
-    #moveAndClick("nome_main.png", "left")
-    #time.sleep(1)
-    #pyautogui.hotkey('ctrl', 'a')
-    #time.sleep(1)
-    #pyautogui.press('backspace')
-    #time.sleep(1)
-    #pyautogui.write("Main")
-    #time.sleep(1)
-    #moveAndClick("ok.png", "left")
     time.sleep(1)
     #Exportar a VF
     moveAndClick(["arquivo.png", "arquivo_en.png"], "left")
@@ -1102,14 +1092,12 @@ def procura_projeto(nome):
         return False
 
 
-    
-
 
 projetos = ["312MCA"]
 dominios = ["Climate", "Comfort Climate"]
 use_cases = ["Defroster"]
 VFs = ["VF123"]
-doors = "LATAM"
+
 # Inicializar planilha de rastreamento
 df_vfs, nome_arquivo_vfs = criar_planilha_vfs(projetos)
 
