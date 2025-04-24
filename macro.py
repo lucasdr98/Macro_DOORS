@@ -1164,10 +1164,10 @@ def filtrar_codigos_por_regiao(caminho_planilha, regiao):
 
 
 
-projetos = ["312MCA"]
+projetos = ["332BEV"]
 dominios = ["Climate", "Comfort Climate"]
 use_cases = ["Defroster"]
-VFs = ["VF123"]
+VFs = ["VF126"]
 
 # Inicializar planilha de rastreamento
 df_vfs, nome_arquivo_vfs = criar_planilha_vfs(projetos)
@@ -1188,7 +1188,6 @@ for projeto in projetos:
 
     voltar = 7
     
-    time.sleep(1)
     
     # Mapeia as subpastas do projeto
     if esperarPor("pasta.png"):
@@ -1266,7 +1265,7 @@ for projeto in projetos:
         if dominio_encontrado:
             registrar_log(f"Domain found: {dominio_encontrado}", "INFO")
             clicar_pasta(dominio_encontrado, pastas_dominios)
-            time.sleep(1)
+            
             if esperarPor("pasta_amarela.png"):
                 pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
                 # Usa valores padrão se não encontrou a imagem
@@ -1301,14 +1300,14 @@ for projeto in projetos:
                 # Processa os use cases
                 for use_case in pastas_para_processar:
                     clicar_pasta(use_case, pastas_use_cases)
-                    time.sleep(1)
+                    
 
                     pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
                     # Usa valores padrão se não encontrou a imagem
                     if pos_x is None:
                         pos_x, pos_y = 0.3, 0.1  # Valores padrão
                         registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
-                        
+                    time.sleep(0.5)  
                     sub_pastas = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
                     vf_nomes = mapear_pastas(icone_path="images/icone_vf.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
 
