@@ -87,7 +87,7 @@ def registrar_log(mensagem, tipo="INFO"):
     elif tipo == "WARNING":
         print(f"⚠️ {mensagem}")
 
-def registrar_caminho(projeto, pasta_nivel, pasta_requisitos, dominio, pasta_use_case, sub_pasta=None, vf_nome=None, baixada=None, pasta_vazia=False):
+def registrar_caminho(projeto, pasta_nivel, pasta_requisitos, dominio, pasta_use_case, sub_pasta=None, vf_nome=None, baixada=None, pasta_vazia=False, vfs_list=None):
     """
     Registra o caminho completo percorrido até uma pasta ou VF
     
@@ -101,7 +101,12 @@ def registrar_caminho(projeto, pasta_nivel, pasta_requisitos, dominio, pasta_use
         vf_nome: Nome da VF (opcional)
         baixada: Indica se a VF foi baixada com sucesso (opcional)
         pasta_vazia: Indica se é uma pasta vazia (opcional)
+        vfs_list: Lista de VFs que devem ser baixadas (opcional)
     """
+    # Se não foi fornecida uma lista de VFs, usa uma lista vazia
+    if vfs_list is None:
+        vfs_list = []
+    
     # Monta o caminho
     caminho = f"Projects\\{projeto}\\{pasta_nivel}\\{pasta_requisitos}\\{dominio}\\{pasta_use_case}"
     if sub_pasta:
@@ -115,12 +120,12 @@ def registrar_caminho(projeto, pasta_nivel, pasta_requisitos, dominio, pasta_use
     # Se este caminho já foi registrado e é uma VF que está sendo baixada,
     # só registra novamente se o status mudou de False para True
     if caminho_chave in caminhos_registrados:
-        if not (vf_nome and vf_nome.split('_V')[0] in VFs and baixada):
+        if not (vf_nome and vf_nome.split('_V')[0] in vfs_list and baixada):
             return
     
     # Adiciona o emoji apropriado
     if vf_nome:
-        if vf_nome.split('_V')[0] in VFs:  # VF que deve ser baixada
+        if vf_nome.split('_V')[0] in vfs_list:  # VF que deve ser baixada
             if baixada:
                 caminho += " ✅"
             else:
@@ -1162,201 +1167,187 @@ def filtrar_codigos_por_regiao(caminho_planilha, regiao):
         registrar_log(f"Error processing spreadsheet: {str(e)}", "ERROR")
         return []
 
-
-
-projetos = ["332BEV"]
-dominios = ["Climate", "Comfort Climate"]
-use_cases = ["Defroster"]
-VFs = ["VF126"]
-
-# Inicializar planilha de rastreamento
-df_vfs, nome_arquivo_vfs = criar_planilha_vfs(projetos)
-
-time.sleep(5)
-
-    #Clicando no botão projetos
-if not moveAndClick("projects.png", "left"):
-    print("❌ Parando")
-    messagebox.showerror("Timeout", "Image recognition failed")        
-    exit()
-
-for projeto in projetos:
-
-    if not procura_projeto(projeto):
-        registrar_log(f"Project {projeto} not found. Continuing to the next project.", "WARNING")
-        continue
-
-    voltar = 7
+def main_logic(projetos, dominios, use_cases, VFs):
+    """
+    Função principal do macro que executa a lógica de busca e download das VFs
     
-    
-    # Mapeia as subpastas do projeto
-    if esperarPor("pasta.png"):
-        pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
-        # Usa valores padrão se não encontrou a imagem
-        if pos_x is None:
-            pos_x, pos_y = 0.3, 0.1  # Valores padrão
-            registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
+    Args:
+        projetos: Lista de códigos de projetos para pesquisar
+        dominios: Lista de domínios para filtrar
+        use_cases: Lista de casos de uso para filtrar
+        VFs: Lista de VFs para baixar
+    """
+    # Inicializar planilha de rastreamento
+    df_vfs, nome_arquivo_vfs = criar_planilha_vfs(projetos)
+
+    time.sleep(5)
+
+    # Clicando no botão projetos
+    if not moveAndClick("projects.png", "left"):
+        print("❌ Parando")
+        messagebox.showerror("Timeout", "Image recognition failed")        
+        return
+
+    for projeto in projetos:
+
+        if not procura_projeto(projeto):
+            registrar_log(f"Project {projeto} not found. Continuing to the next project.", "WARNING")
+            continue
+
+        voltar = 7
         
-        pastas_niveis = mapear_pastas(icone_path="images/pasta.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
         
-        # Encontra e clica na pasta de maior nível
-        pasta_maior_nivel = encontrar_pasta_maior_nivel(pastas_niveis)
-        if pasta_maior_nivel:
-            print(f"Selecionando pasta de maior nível: {pasta_maior_nivel}")
-            clicar_pasta(pasta_maior_nivel, pastas_niveis)
+        # Mapeia as subpastas do projeto
+        if esperarPor("pasta.png"):
+            pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+            # Usa valores padrão se não encontrou a imagem
+            if pos_x is None:
+                pos_x, pos_y = 0.3, 0.1  # Valores padrão
+                registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
+            
+            pastas_niveis = mapear_pastas(icone_path="images/pasta.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
+            
+            # Encontra e clica na pasta de maior nível
+            pasta_maior_nivel = encontrar_pasta_maior_nivel(pastas_niveis)
+            if pasta_maior_nivel:
+                print(f"Selecionando pasta de maior nível: {pasta_maior_nivel}")
+                clicar_pasta(pasta_maior_nivel, pastas_niveis)
+            else:
+                registrar_log(f"No valid folder found in project {projeto}", "ERROR")
+                messagebox.showerror("Error", "No valid folder found in project")
+                return
         else:
-            registrar_log(f"No valid folder found in project {projeto}", "ERROR")
-            messagebox.showerror("Erro", "No valid folder found in project")
-            exit()
-    else:
-        registrar_log("Failed to map level folders", "ERROR")
-        messagebox.showerror("Timeout", "Image recognition failed")
-        exit()
+            registrar_log("Failed to map level folders", "ERROR")
+            messagebox.showerror("Timeout", "Image recognition failed")
+            return
 
-    # Procura e clica em Functional Requirements
-    if esperarPor("pasta_amarela.png", timeout= 30):
+        # Procura e clica em Functional Requirements
+        if esperarPor("pasta_amarela.png", timeout= 30):
 
-        pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
-        # Usa valores padrão se não encontrou a imagem
-        if pos_x is None:
-            pos_x, pos_y = 0.3, 0.1  # Valores padrão
-            registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
+            pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+            # Usa valores padrão se não encontrou a imagem
+            if pos_x is None:
+                pos_x, pos_y = 0.3, 0.1  # Valores padrão
+                registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
+                
+            pastas_requerimentos = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
             
-        pastas_requerimentos = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
-        
-        pasta_requisitos = encontrar_pasta_requisitos(pastas_requerimentos)
-        if pasta_requisitos:
-            if not clicar_pasta(pasta_requisitos, pastas_requerimentos):
-                registrar_log(f"Error clicking on requirements folder in {projeto}", "ERROR")
-                messagebox.showerror("Erro", "Error clicking on requirements folder")
-                exit()
-            
+            pasta_requisitos = encontrar_pasta_requisitos(pastas_requerimentos)
+            if pasta_requisitos:
+                if not clicar_pasta(pasta_requisitos, pastas_requerimentos):
+                    registrar_log(f"Error clicking on requirements folder in {projeto}", "ERROR")
+                    messagebox.showerror("Error", "Error clicking on requirements folder")
+                    return
+                
+            else:
+                registrar_log(f"Functional requirements folder not found in {projeto}", "ERROR")
+                messagebox.showerror("Error", "Functional requirements folder not found")
+                return
         else:
-            registrar_log(f"Functional requirements folder not found in {projeto}", "ERROR")
-            messagebox.showerror("Erro", "Functional requirements folder not found")
-            
-            exit()
-    else:
-        registrar_log("Failed to map requirements folder", "ERROR")
-        messagebox.showerror("Timeout", "Image recognition failed")
-        exit()
+            registrar_log("Failed to map requirements folder", "ERROR")
+            messagebox.showerror("Timeout", "Image recognition failed")
+            return
 
-    if esperarPor("pasta_amarela.png"):
-        pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
-        # Usa valores padrão se não encontrou a imagem
-        if pos_x is None:
-            pos_x, pos_y = 0.3, 0.1  # Valores padrão
-            registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
+        if esperarPor("pasta_amarela.png"):
+            pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+            # Usa valores padrão se não encontrou a imagem
+            if pos_x is None:
+                pos_x, pos_y = 0.3, 0.1  # Valores padrão
+                registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
+                
+            pastas_dominios = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
             
-        pastas_dominios = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
-        
-        # Verifica se algum domínio da lista foi encontrado nas pastas
-        dominio_encontrado = None
-        for nome_pasta in pastas_dominios:
-            # Remove 'folder' do nome para comparação
-            nome_limpo = nome_pasta.replace(" ", "").lower().replace('folder', '').strip()
-            for dominio in dominios:
-                if dominio.replace(" ", "").lower() == nome_limpo:
-                    dominio_encontrado = nome_pasta
+            # Verifica se algum domínio da lista foi encontrado nas pastas
+            dominio_encontrado = None
+            for nome_pasta in pastas_dominios:
+                # Remove 'folder' do nome para comparação
+                nome_limpo = nome_pasta.replace(" ", "").lower().replace('folder', '').strip()
+                for dominio in dominios:
+                    if dominio.replace(" ", "").lower() == nome_limpo:
+                        dominio_encontrado = nome_pasta
+                        break
+                if dominio_encontrado:
                     break
-            if dominio_encontrado:
-                break
-        
-        if dominio_encontrado:
-            registrar_log(f"Domain found: {dominio_encontrado}", "INFO")
-            clicar_pasta(dominio_encontrado, pastas_dominios)
             
-            if esperarPor("pasta_amarela.png"):
-                pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
-                # Usa valores padrão se não encontrou a imagem
-                if pos_x is None:
-                    pos_x, pos_y = 0.3, 0.1  # Valores padrão
-                    registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
-                    
-                pastas_use_cases = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
-                print(pastas_use_cases)
+            if dominio_encontrado:
+                registrar_log(f"Domain found: {dominio_encontrado}", "INFO")
+                clicar_pasta(dominio_encontrado, pastas_dominios)
                 
-                # Se a lista use_cases não estiver vazia, procura apenas os use cases listados
-                if use_cases:
-                    use_cases_encontrados = []
-                    for nome_pasta in pastas_use_cases:
-                        nome_normalizado = nome_pasta.replace(" ", "").lower()
-                        for use_case in use_cases:
-                            if use_case.replace(" ", "").lower() == nome_normalizado:
-                                use_cases_encontrados.append(nome_pasta)
-                                break
-                    
-                    # Atualiza a lista de use cases para processar apenas os encontrados
-                    if use_cases_encontrados:
-                        registrar_log(f"Use cases found: {', '.join(use_cases_encontrados)}", "INFO")
-                        pastas_para_processar = use_cases_encontrados
-                    else:
-                        registrar_log(f"None of the specified use cases was found", "WARNING")
-                        continue
-                else:
-                    # Se use_cases estiver vazia, processa todos os use cases encontrados
-                    pastas_para_processar = list(pastas_use_cases.keys())
-                
-                # Processa os use cases
-                for use_case in pastas_para_processar:
-                    clicar_pasta(use_case, pastas_use_cases)
-                    
-
+                if esperarPor("pasta_amarela.png"):
                     pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
                     # Usa valores padrão se não encontrou a imagem
                     if pos_x is None:
                         pos_x, pos_y = 0.3, 0.1  # Valores padrão
                         registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
-                    time.sleep(0.5)  
-                    sub_pastas = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
-                    vf_nomes = mapear_pastas(icone_path="images/icone_vf.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
+                        
+                    pastas_use_cases = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
+                    print(pastas_use_cases)
+                    
+                    # Se a lista use_cases não estiver vazia, procura apenas os use cases listados
+                    if use_cases:
+                        use_cases_encontrados = []
+                        for nome_pasta in pastas_use_cases:
+                            nome_normalizado = nome_pasta.replace(" ", "").lower()
+                            for use_case in use_cases:
+                                if use_case.replace(" ", "").lower() == nome_normalizado:
+                                    use_cases_encontrados.append(nome_pasta)
+                                    break
+                        
+                        # Atualiza a lista de use cases para processar apenas os encontrados
+                        if use_cases_encontrados:
+                            registrar_log(f"Use cases found: {', '.join(use_cases_encontrados)}", "INFO")
+                            pastas_para_processar = use_cases_encontrados
+                        else:
+                            registrar_log(f"None of the specified use cases was found", "WARNING")
+                            continue
+                    else:
+                        # Se use_cases estiver vazia, processa todos os use cases encontrados
+                        pastas_para_processar = list(pastas_use_cases.keys())
+                    
+                    # Processa os use cases
+                    for use_case in pastas_para_processar:
+                        clicar_pasta(use_case, pastas_use_cases)
+                        
 
-                    # Se não encontrou nem subpastas nem VFs, é uma pasta vazia
-                    if not sub_pastas and not vf_nomes:
-                        registrar_caminho(
-                            projeto=projeto,
-                            pasta_nivel=pasta_maior_nivel,
-                            pasta_requisitos=pasta_requisitos,
-                            dominio=dominio_encontrado,
-                            pasta_use_case=use_case,
-                            pasta_vazia=True
-                        )
+                        pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+                        # Usa valores padrão se não encontrou a imagem
+                        if pos_x is None:
+                            pos_x, pos_y = 0.3, 0.1  # Valores padrão
+                            registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
+                        time.sleep(0.5)  
+                        sub_pastas = mapear_pastas(icone_path="images/pasta_amarela.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
+                        vf_nomes = mapear_pastas(icone_path="images/icone_vf.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
 
-                    # Registra VFs encontradas
-                    for vf_nome, vf_info in vf_nomes.items():
-                        df_vfs = adicionar_vf_planilha(
-                            df_vfs,
-                            nome_arquivo_vfs,
-                            folder=use_case,
-                            vf_info=vf_info,
-                            projeto=projeto
-                        )
-                        
-                        # Verifica se é uma VF que deve ser baixada
-                        baixar = False
-                        for vf_esperado in VFs:
-                            if vf_nome.lower().startswith(vf_esperado.lower()):
-                                baixar = True
-                                break
-                        
-                        # Registra o caminho
-                        registrar_caminho(
-                            projeto=projeto,
-                            pasta_nivel=pasta_maior_nivel,
-                            pasta_requisitos=pasta_requisitos,
-                            dominio=dominio_encontrado,
-                            pasta_use_case=use_case,
-                            vf_nome=vf_nome,
-                            baixada=False if baixar else None  # None para VFs que não precisam ser baixadas
-                        )
-                        
-                        if baixar:
-                            clicar_pasta(vf_nome, vf_nomes)
-                            esperarPor(["abrir_somente_leitura.png", "abrir_somente_leitura_en.png"], timeout=30, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
-                            moveAndClick(["abrir_somente_leitura.png", "abrir_somente_leitura_en.png"], "left")
-                            esperarPor("main.png", timeout=20, iniX=0.1, iniY=0.1, fimX=0.9, fimY=0.5)
-                            sucesso = baixarVF(vf_nome)
-                            # Atualiza o registro com o status do download
+                        # Se não encontrou nem subpastas nem VFs, é uma pasta vazia
+                        if not sub_pastas and not vf_nomes:
+                            registrar_caminho(
+                                projeto=projeto,
+                                pasta_nivel=pasta_maior_nivel,
+                                pasta_requisitos=pasta_requisitos,
+                                dominio=dominio_encontrado,
+                                pasta_use_case=use_case,
+                                pasta_vazia=True,
+                                vfs_list=VFs
+                            )
+
+                        # Registra VFs encontradas
+                        for vf_nome, vf_info in vf_nomes.items():
+                            df_vfs = adicionar_vf_planilha(
+                                df_vfs,
+                                nome_arquivo_vfs,
+                                folder=use_case,
+                                vf_info=vf_info,
+                                projeto=projeto
+                            )
+                            
+                            # Verifica se é uma VF que deve ser baixada
+                            baixar = False
+                            for vf_esperado in VFs:
+                                if vf_nome.lower().startswith(vf_esperado.lower()):
+                                    baixar = True
+                                    break
+                            
+                            # Registra o caminho
                             registrar_caminho(
                                 projeto=projeto,
                                 pasta_nivel=pasta_maior_nivel,
@@ -1364,68 +1355,70 @@ for projeto in projetos:
                                 dominio=dominio_encontrado,
                                 pasta_use_case=use_case,
                                 vf_nome=vf_nome,
-                                baixada=sucesso
+                                baixada=False if baixar else None,  # None para VFs que não precisam ser baixadas
+                                vfs_list=VFs
                             )
-
-                    if sub_pastas != {}:
-                        for sub_pasta in sub_pastas:
-                            clicar_pasta(sub_pasta, sub_pastas)
-                            pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
-                            # Usa valores padrão se não encontrou a imagem
-                            if pos_x is None:
-                                pos_x, pos_y = 0.3, 0.1  # Valores padrão
-                                registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
-                                
-                            vf_nomes = mapear_pastas(icone_path="images/icone_vf.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
                             
-                            # Se não encontrou VFs na subpasta, é uma pasta vazia
-                            if not vf_nomes:
+                            if baixar:
+                                clicar_pasta(vf_nome, vf_nomes)
+                                esperarPor(["abrir_somente_leitura.png", "abrir_somente_leitura_en.png"], timeout=30, iniX=0.05, iniY=0.05, fimX=0.8, fimY=0.95)
+                                moveAndClick(["abrir_somente_leitura.png", "abrir_somente_leitura_en.png"], "left")
+                                esperarPor("main.png", timeout=20, iniX=0.1, iniY=0.1, fimX=0.9, fimY=0.5)
+                                sucesso = baixarVF(vf_nome)
+                                # Atualiza o registro com o status do download
                                 registrar_caminho(
                                     projeto=projeto,
                                     pasta_nivel=pasta_maior_nivel,
                                     pasta_requisitos=pasta_requisitos,
                                     dominio=dominio_encontrado,
                                     pasta_use_case=use_case,
-                                    sub_pasta=sub_pasta,
-                                    pasta_vazia=True
-                                )
-                            
-                            # Registra VFs encontradas na sub-pasta
-                            for vf_nome, vf_info in vf_nomes.items():
-                                df_vfs = adicionar_vf_planilha(
-                                    df_vfs,
-                                    nome_arquivo_vfs,
-                                    folder=f"{use_case}/{sub_pasta}",
-                                    vf_info=vf_info,
-                                    projeto=projeto
-                                )
-                                
-                                # Verifica se é uma VF que deve ser baixada
-                                baixar = False
-                                for vf_esperado in VFs:
-                                    if vf_nome.lower().startswith(vf_esperado.lower()):
-                                        baixar = True
-                                        break
-                                
-                                # Registra o caminho
-                                registrar_caminho(
-                                    projeto=projeto,
-                                    pasta_nivel=pasta_maior_nivel,
-                                    pasta_requisitos=pasta_requisitos,
-                                    dominio=dominio_encontrado,
-                                    pasta_use_case=use_case,
-                                    sub_pasta=sub_pasta,
                                     vf_nome=vf_nome,
-                                    baixada=False if baixar else None  # None para VFs que não precisam ser baixadas
+                                    baixada=sucesso,
+                                    vfs_list=VFs
                                 )
+
+                        if sub_pastas != {}:
+                            for sub_pasta in sub_pastas:
+                                clicar_pasta(sub_pasta, sub_pastas)
+                                pos_x, pos_y = encontrar_posicao_xy(["tipo_menu.png", "tipo_menu_en.png"], iniX=0.1, iniY=0.05, fimX=0.8, fimY=0.4)
+                                # Usa valores padrão se não encontrou a imagem
+                                if pos_x is None:
+                                    pos_x, pos_y = 0.3, 0.1  # Valores padrão
+                                    registrar_log("Could not find tipo_menu.png, using default coordinates", "WARNING")
+                                    
+                                vf_nomes = mapear_pastas(icone_path="images/icone_vf.png", iniX=0.1, iniY=pos_y, fimX=pos_x, fimY=0.95)
                                 
-                                if baixar:
-                                    clicar_pasta(vf_nome, vf_nomes)
-                                    time.sleep(1)
-                                    moveAndClick("abrir_somente_leitura.png", "left")
-                                    esperarPor("main.png", timeout=20, iniX=0.1, iniY=0.1, fimX=0.9, fimY=0.5)
-                                    sucesso = baixarVF(vf_nome)
-                                    # Atualiza o registro com o status do download
+                                # Se não encontrou VFs na subpasta, é uma pasta vazia
+                                if not vf_nomes:
+                                    registrar_caminho(
+                                        projeto=projeto,
+                                        pasta_nivel=pasta_maior_nivel,
+                                        pasta_requisitos=pasta_requisitos,
+                                        dominio=dominio_encontrado,
+                                        pasta_use_case=use_case,
+                                        sub_pasta=sub_pasta,
+                                        pasta_vazia=True,
+                                        vfs_list=VFs
+                                    )
+                                
+                                # Registra VFs encontradas na sub-pasta
+                                for vf_nome, vf_info in vf_nomes.items():
+                                    df_vfs = adicionar_vf_planilha(
+                                        df_vfs,
+                                        nome_arquivo_vfs,
+                                        folder=f"{use_case}/{sub_pasta}",
+                                        vf_info=vf_info,
+                                        projeto=projeto
+                                    )
+                                    
+                                    # Verifica se é uma VF que deve ser baixada
+                                    baixar = False
+                                    for vf_esperado in VFs:
+                                        if vf_nome.lower().startswith(vf_esperado.lower()):
+                                            baixar = True
+                                            break
+                                    
+                                    # Registra o caminho
                                     registrar_caminho(
                                         projeto=projeto,
                                         pasta_nivel=pasta_maior_nivel,
@@ -1434,31 +1427,59 @@ for projeto in projetos:
                                         pasta_use_case=use_case,
                                         sub_pasta=sub_pasta,
                                         vf_nome=vf_nome,
-                                        baixada=sucesso
+                                        baixada=False if baixar else None,  # None para VFs que não precisam ser baixadas
+                                        vfs_list=VFs
                                     )
+                                    
+                                    if baixar:
+                                        clicar_pasta(vf_nome, vf_nomes)
+                                        time.sleep(1)
+                                        moveAndClick("abrir_somente_leitura.png", "left")
+                                        esperarPor("main.png", timeout=20, iniX=0.1, iniY=0.1, fimX=0.9, fimY=0.5)
+                                        sucesso = baixarVF(vf_nome)
+                                        # Atualiza o registro com o status do download
+                                        registrar_caminho(
+                                            projeto=projeto,
+                                            pasta_nivel=pasta_maior_nivel,
+                                            pasta_requisitos=pasta_requisitos,
+                                            dominio=dominio_encontrado,
+                                            pasta_use_case=use_case,
+                                            sub_pasta=sub_pasta,
+                                            vf_nome=vf_nome,
+                                            baixada=sucesso,
+                                            vfs_list=VFs
+                                        )
 
+                                time.sleep(1)
+                                voltar_nivel(1)
+
+                            time.sleep(1)   
+                            voltar_nivel(2)
+                        else:
                             time.sleep(1)
                             voltar_nivel(1)
-
-                        time.sleep(1)   
-                        voltar_nivel(2)
-                    else:
-                        time.sleep(1)
-                        voltar_nivel(1)
+            else:
+                # Lista os domínios encontrados no mapa
+                dominios_encontrados = [nome_pasta for nome_pasta in pastas_dominios.keys()]
+                registrar_log(f"None of the specified domains was found in project {projeto}. Available domains: {', '.join(dominios_encontrados)}", "WARNING")
+                voltar = 4
         else:
-            # Lista os domínios encontrados no mapa
-            dominios_encontrados = [nome_pasta for nome_pasta in pastas_dominios.keys()]
-            registrar_log(f"None of the specified domains was found in project {projeto}. Available domains: {', '.join(dominios_encontrados)}", "WARNING")
-            voltar = 4
-    else:
-        registrar_log("Failed to map domain folders", "ERROR")
-        messagebox.showerror("Timeout", "Image recognition failed")
-        exit()
-    
-    voltar_nivel(voltar)
-    moveAndClick("projects.png", "left")
-    time.sleep(0.5)
+            registrar_log("Failed to map domain folders", "ERROR")
+            messagebox.showerror("Timeout", "Image recognition failed")
+            return
+        
+        voltar_nivel(voltar)
+        moveAndClick("projects.png", "left")
+        time.sleep(0.5)
 
-print(f"\n✅ Process completed! The spreadsheet was saved at: {nome_arquivo_vfs}")
-messagebox.showinfo("Completed", f"Process finished!\nThe spreadsheet was saved at:\n{nome_arquivo_vfs}")
+    print(f"\n✅ Process completed! The spreadsheet was saved at: {nome_arquivo_vfs}")
+    messagebox.showinfo("Completed", f"Process finished!\nThe spreadsheet was saved at:\n{nome_arquivo_vfs}")
+    return nome_arquivo_vfs
 
+# Código removido de inicialização direta:
+# projetos = ["332BEV"]
+# dominios = ["Climate", "Comfort Climate"]
+# use_cases = ["Defroster"]
+# VFs = ["VF126"]
+
+# O código agora é executado através da função main_logic chamada pela GUI
