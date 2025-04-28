@@ -11,7 +11,7 @@ from tkinter import messagebox
 import pandas as pd
 from datetime import datetime
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+pytesseract.pytesseract.tesseract_cmd = r"Tesseract-OCR\tesseract.exe"
 
 # Configuração inicial
 root = tkinter.Tk()

@@ -9,6 +9,7 @@ from datetime import datetime
 import shutil
 import time
 
+
 class MacroGUI:
     def __init__(self, root):
         self.root = root
@@ -297,6 +298,7 @@ class MacroGUI:
             self.log("Starting macro execution...")
             
             # Load macro.py as a module
+            
             spec = importlib.util.spec_from_file_location("macro", "macro.py")
             macro = importlib.util.module_from_spec(spec)
             
