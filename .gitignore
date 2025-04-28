@@ -22,4 +22,19 @@ debug_area/
 
 # Outros
 .env
-.DS_Store 
+.DS_Store
+
+# Build directories
+build/
+dist/
+dist_package/
+
+# Tesseract
+Tesseract-OCR/
+
+# IDE specific
+.vscode/
+.idea/
+
+# Spec files
+*.spec 
