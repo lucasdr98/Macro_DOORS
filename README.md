@@ -62,3 +62,13 @@ esperarPor(["dialogo_v1.png", "dialogo_v2.png"], timeout=10)
 ```
 
 A função irá tentar encontrar qualquer uma das imagens fornecidas e usar a primeira que encontrar com maior confiança. 
+
+## Compilação com PyInstaller
+
+Para compilar o aplicativo em um executável standalone:
+
+```
+pyinstaller doors_macro.spec
+```
+
+Isso criará uma pasta `dist` com o executável e todos os arquivos necessários, incluindo o Tesseract OCR e as imagens usadas para reconhecimento. 
