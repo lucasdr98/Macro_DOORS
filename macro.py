@@ -1,4 +1,5 @@
 import pyautogui
+import pyperclip
 import cv2
 import numpy as np
 import pytesseract
@@ -10,22 +11,36 @@ import tkinter
 from tkinter import messagebox
 import pandas as pd
 from datetime import datetime
+import sys
 
-pytesseract.pytesseract.tesseract_cmd = r"Tesseract-OCR\tesseract.exe"
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+# Configuração do caminho do Tesseract
+tesseract_path = get_resource_path("Tesseract-OCR/tesseract.exe")
+pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
 # Configuração inicial
 root = tkinter.Tk()
 root.withdraw()
 
-debug = False
-debug_dir = "debug"
-if not os.path.exists(debug_dir):
-    os.makedirs(debug_dir)
-
-# Configuração dos logs
-logs_dir = "logs"
-if not os.path.exists(logs_dir):
-    os.makedirs(logs_dir)
+# Variáveis globais que serão configuradas pelo GUI
+debug = True
+debug_dir = None
+logs_dir = None
+timestamp_execucao = None
+nome_arquivo_log = None
+nome_arquivo_caminhos = None
+caminhos_registrados = set()
+VFs = []  # Lista global de VFs a serem baixadas
 
 def limpar_arquivos_antigos(diretorio, prefixo, max_arquivos=10):
     """
@@ -52,18 +67,6 @@ def limpar_arquivos_antigos(diretorio, prefixo, max_arquivos=10):
             except Exception as e:
                 print(f"Error removing file {arquivo}: {e}")
 
-# Gera nomes únicos para os arquivos de log desta execução
-timestamp_execucao = datetime.now().strftime("%Y%m%d_%H%M%S")
-nome_arquivo_log = f"{logs_dir}/log_{timestamp_execucao}.txt"
-nome_arquivo_caminhos = f"{logs_dir}/caminhos_{timestamp_execucao}.txt"
-
-# Conjunto para rastrear caminhos já registrados
-caminhos_registrados = set()
-
-# Limpa arquivos antigos no início da execução
-limpar_arquivos_antigos(logs_dir, "log_", 10)
-limpar_arquivos_antigos(logs_dir, "caminhos_", 10)
-
 def registrar_log(mensagem, tipo="INFO"):
     """
     Records a message in the log file
@@ -72,6 +75,9 @@ def registrar_log(mensagem, tipo="INFO"):
         mensagem: Message to be recorded
         tipo: Message type (INFO, ERROR, WARNING)
     """
+    if not nome_arquivo_log:
+        return
+        
     data = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # Format the message
@@ -103,6 +109,9 @@ def registrar_caminho(projeto, pasta_nivel, pasta_requisitos, dominio, pasta_use
         pasta_vazia: Indica se é uma pasta vazia (opcional)
         vfs_list: Lista de VFs que devem ser baixadas (opcional)
     """
+    if not nome_arquivo_caminhos:
+        return
+        
     # Se não foi fornecida uma lista de VFs, usa uma lista vazia
     if vfs_list is None:
         vfs_list = []
@@ -813,7 +822,7 @@ def baixarVF(nome_VF, output_dir=None):
 
     if esperarPor("maximizar_vf.png", timeout=5, iniX=0.1, iniY=0.05, fimX=0.7, fimY=0.5):
         moveAndClick("maximizar_vf.png", "left")
-        time.sleep(0.5)
+        time.sleep(0.7)
     
     esperarPor("main.png", timeout=10, iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.4)
     
@@ -822,9 +831,9 @@ def baixarVF(nome_VF, output_dir=None):
     
     if esperarPor("separador_coluna.png", timeout=5, iniX=0.11, iniY=y_min, fimX=0.3, fimY=y_max):
         moveAndClick("separador_coluna.png", "right", offset_x=-50)
-        time.sleep(0.5)
+        time.sleep(0.7)
         moveAndClick(["remover.png", "remover_en.png"], "left")
-        time.sleep(0.5)
+        time.sleep(0.7)
 
     
     #Organizar a VF
@@ -839,49 +848,51 @@ def baixarVF(nome_VF, output_dir=None):
     moveAndClick(["novo.png", "novo_en.png"], "left")
     esperarPor("barra.png", timeout=10, iniX=0.05, iniY=0.05, fimX=0.95, fimY=0.95)
     moveAndClick("barra.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("object_text.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("name.png", "left")
-    time.sleep(0.5)
-    pyautogui.write("Main")
-    time.sleep(0.5)
-    moveAndClick(["inserir.png", "inserir_en.png"], "left")
-    time.sleep(0.5)
-    moveAndClick("name_main.png", "left")
-    time.sleep(0.5)
-    pyautogui.hotkey('ctrl', 'a')
+    pyperclip.copy("Main")
     time.sleep(1)
-    pyautogui.press('backspace')
-    time.sleep(0.5)
+    pyautogui.hotkey('ctrl', 'v') 
+    time.sleep(0.7)
+    moveAndClick(["inserir.png", "inserir_en.png"], "left")
+    time.sleep(0.7)
+    moveAndClick("name_main.png", "left")
+    time.sleep(1)
+    pyautogui.hotkey('ctrl', 'a')
+    time.sleep(1.1)
+    pyautogui.press('delete')
+    time.sleep(1.1)
     moveAndClick("barra.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("object_heading.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick(["inserir.png", "inserir_en.png"], "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("barra.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("object_number.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick(["inserir.png", "inserir_en.png"], "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("barra.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("object_level.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick(["inserir.png", "inserir_en.png"], "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("barra.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("object_identifier.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick("name.png", "left")
-    time.sleep(0.5)
-    pyautogui.write("RegID")
-    time.sleep(0.5)
+    pyperclip.copy("RegID")
+    time.sleep(1)
+    pyautogui.hotkey('ctrl', 'v') 
+    time.sleep(0.7)
     moveAndClick(["inserir.png", "inserir_en.png"], "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick(["fechar.png", "fechar_en.png"], "left")
     esperarPor("main_text.png", timeout=10, iniX=0.1, iniY=0.1, fimX=1, fimY=0.4)
     moveAndClick("main_text.png", "right", offset_x=200)
@@ -901,14 +912,14 @@ def baixarVF(nome_VF, output_dir=None):
     # poderíamos inserir o caminho completo, mas usando automação temos limitações
     esperarPor("desktop_export.png", timeout= 30, iniX=0.4, iniY=0.2, fimX=0.9, fimY=0.80)
     moveAndClick("desktop_export.png", "left")
-    time.sleep(0.5)
+    time.sleep(0.7)
     moveAndClick(["abrir_export.png", "abrir_export_en.png"], "left")
     esperarPor(["exportar_csv.png", "exportar_csv_en.png"], timeout= 30, iniX=0.3, iniY=0.50, fimX=0.6, fimY=0.80)
     moveAndClick(["exportar_csv.png", "exportar_csv_en.png"], "left")
     #Checando se tem repetido
     if esperarPor(["confirmar_sobrescrever.png", "confirmar_sobrescrever_en.png"], timeout= 5, iniX=0.25, iniY=0.3, fimX=0.7, fimY=0.7):
         moveAndClick(["confirmar_sobrescrever.png", "confirmar_sobrescrever_en.png"], "left")
-        time.sleep(0.5)
+        time.sleep(0.7)
     #Esperando o export acabar
     exportando = True
     while exportando:
@@ -1127,16 +1138,18 @@ def encontrar_posicao_xy(image, iniX=0, iniY=0, fimX=1, fimY=1):
 
 def procura_projeto(nome):
     
+    pyperclip.copy(nome)
     esperarPor(["ferramentas.png", "ferramentas_en.png"], timeout=30, iniX=0.01, iniY= 0.05, fimX=0.7, fimY=0.4)
     moveAndClick(["ferramentas.png", "ferramentas_en.png"], "left")
     esperarPor(["localizar.png", "localizar_en.png"], timeout=30, iniX=0.01, iniY= 0.05, fimX=0.7, fimY=0.4)
     moveAndClick(["localizar.png", "localizar_en.png"], "left")
     esperarPor("check_localizar.png", timeout=30, iniX=0.3, iniY=0.2, fimX=7, fimY=0.8)
-    pyautogui.write(nome)
+    time.sleep(0.5) 
+    pyautogui.hotkey('ctrl', 'v') 
     time.sleep(1)
     moveAndClick("check_localizar.png", "left")
     time.sleep(0.5)
-    pyautogui.press("enter")
+    moveAndClick(["encontrar.png", "encontrar_en.png"], "left")
     if esperarPor("pasta.png",timeout=10, iniX=0.3, iniY=0.4, fimX=0.7, fimY=0.8):
         moveAndClick(["pasta.png", "pasta_en.png"], "double", iniX=0.3, iniY=0.4, fimX=0.7, fimY=0.8)
         time.sleep(2)
@@ -1216,7 +1229,7 @@ def filtrar_codigos_por_regiao(caminho_planilha, regiao):
         registrar_log(f"Error processing spreadsheet: {str(e)}", "ERROR")
         return []
 
-def main_logic(projetos, dominios, use_cases, VFs, output_dir=None):
+def main_logic(projetos, dominios, use_cases, VFs_param, output_dir=None):
     """
     Função principal do macro que executa a lógica de busca e download das VFs
     
@@ -1224,17 +1237,68 @@ def main_logic(projetos, dominios, use_cases, VFs, output_dir=None):
         projetos: Lista de códigos de projetos para pesquisar
         dominios: Lista de domínios para filtrar
         use_cases: Lista de casos de uso para filtrar
-        VFs: Lista de VFs para baixar
+        VFs_param: Lista de VFs para baixar
         output_dir: Diretório onde a planilha será salva (opcional)
     """
+    global debug_dir, logs_dir, timestamp_execucao, nome_arquivo_log, nome_arquivo_caminhos, caminhos_registrados, VFs
+    
+    # Atualiza a variável global VFs com o valor recebido como parâmetro
+    VFs = VFs_param.copy()
+    
+    # Log dos parâmetros recebidos para diagnóstico
+    registrar_log(f"Starting main_logic with parameters:", "INFO")
+    registrar_log(f"Projects: {projetos}", "INFO")
+    registrar_log(f"Domains: {dominios}", "INFO")
+    registrar_log(f"Use Cases: {use_cases}", "INFO")
+    registrar_log(f"VFs (parâmetro): {VFs_param}", "INFO")
+    registrar_log(f"VFs (global): {VFs}", "INFO")
+    registrar_log(f"Output directory: {output_dir}", "INFO")
+    
     # Inicializar planilha de rastreamento
     df_vfs, nome_arquivo_vfs = criar_planilha_vfs(projetos, output_dir)
+
+    # Configurar diretórios
+    if output_dir:
+        # Criar diretório de saída se não existir
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        # Configurar diretório de logs
+        logs_dir = os.path.join(output_dir, "logs")
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir)
+            
+        # Configurar diretório de debug se debug estiver ativado
+        if debug:
+            debug_dir = os.path.join(output_dir, "debug")
+            if not os.path.exists(debug_dir):
+                os.makedirs(debug_dir)
+    else:
+        # Usar diretório atual se nenhum output_dir for especificado
+        logs_dir = "logs"
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir)
+            
+        if debug:
+            debug_dir = "debug"
+            if not os.path.exists(debug_dir):
+                os.makedirs(debug_dir)
+
+    # Inicializar arquivos de log
+    timestamp_execucao = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nome_arquivo_log = os.path.join(logs_dir, f"log_{timestamp_execucao}.txt")
+    nome_arquivo_caminhos = os.path.join(logs_dir, f"caminhos_{timestamp_execucao}.txt")
+    caminhos_registrados = set()
+
+    # Limpar arquivos antigos
+    limpar_arquivos_antigos(logs_dir, "log_", 10)
+    limpar_arquivos_antigos(logs_dir, "caminhos_", 10)
 
     time.sleep(5)
 
     # Clicando no botão projetos
     if not moveAndClick("projects.png", "left"):
-        print("❌ Parando")
+        print("❌ Parando, pasta projects não encontrada")
         messagebox.showerror("Timeout", "Image recognition failed")        
         return
 

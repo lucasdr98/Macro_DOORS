@@ -9,7 +9,6 @@ from datetime import datetime
 import shutil
 import time
 
-
 class MacroGUI:
     def __init__(self, root):
         self.root = root
@@ -31,6 +30,18 @@ class MacroGUI:
         # Settings frame
         settings_frame = ttk.LabelFrame(main_frame, text="Settings", padding=10)
         settings_frame.pack(fill=tk.BOTH, expand=False, padx=5, pady=5)
+        
+        # Create StringVar and other variables before setup_settings to avoid persistence issues
+        # Initialize all variables with default empty values
+        self.project_method = tk.StringVar(value="manual")
+        self.projects_var = tk.StringVar(value="")
+        self.excel_path_var = tk.StringVar(value="")
+        self.region_var = tk.StringVar(value="")
+        self.domains_var = tk.StringVar(value="")
+        self.usecases_var = tk.StringVar(value="")
+        self.vfs_var = tk.StringVar(value="")
+        self.output_dir_var = tk.StringVar(value="")
+        self.debug_var = tk.BooleanVar(value=False)
         
         # Configure settings
         self.setup_settings(settings_frame)
@@ -297,12 +308,20 @@ class MacroGUI:
         try:
             self.log("Starting macro execution...")
             
-            # Load macro.py as a module
-            
-            spec = importlib.util.spec_from_file_location("macro", "macro.py")
+            # Importa o macro.py de uma forma que funciona tanto em tempo de desenvolvimento quanto no executável
+            spec = importlib.util.spec_from_file_location("macro", os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro.py"))
+            if spec is None:
+                # Se não encontrar, tenta usar o caminho relativo para compatibilidade com o PyInstaller
+                spec = importlib.util.spec_from_file_location("macro", "macro.py")
+                
+            # Verifica se o spec foi encontrado
+            if spec is None:
+                self.log("Error: Could not find macro.py module!", "ERROR")
+                messagebox.showerror("Error", "Could not find macro.py module!")
+                self.cleanup()
+                return
+                
             macro = importlib.util.module_from_spec(spec)
-            
-            # Set global variables in the macro module before executing
             spec.loader.exec_module(macro)
             
             # Update debug directory
@@ -353,6 +372,7 @@ class MacroGUI:
                         return
                     
                     self.log(f"Found projects: {', '.join(projects_list)}")
+                    self.log(f"Total: {len(projects_list)} projects will be processed")
                     
                 except Exception as e:
                     self.log(f"Error loading projects from Excel: {str(e)}")
@@ -364,6 +384,7 @@ class MacroGUI:
                 projects_text = self.projects_var.get().strip()
                 projects_list = [p.strip() for p in projects_text.split(',') if p.strip()]
                 self.log(f"Using projects: {', '.join(projects_list)}")
+                self.log(f"Total: {len(projects_list)} projects will be processed")
             
             # Get domains
             domains_text = self.domains_var.get().strip()
@@ -386,6 +407,9 @@ class MacroGUI:
             macro.nome_arquivo_log = f"{macro.logs_dir}/log_{timestamp_execucao}.txt"
             macro.nome_arquivo_caminhos = f"{macro.logs_dir}/caminhos_{timestamp_execucao}.txt"
             macro.caminhos_registrados = set()
+            
+            # Set the global VFs variable in the macro module
+            macro.VFs = vfs_list.copy()
             
             # Clean up old log files
             macro.limpar_arquivos_antigos(macro.logs_dir, "log_", 10)
